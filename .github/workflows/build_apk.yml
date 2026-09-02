@@ -16,11 +16,11 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -42,7 +42,15 @@ jobs:
           fi
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --stacktrace --no-daemon -x test -x lint
+        run: |
+          gradle :app:assembleDebug --stacktrace --no-daemon -x test -x lint 2>&1 | tee build.log
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
