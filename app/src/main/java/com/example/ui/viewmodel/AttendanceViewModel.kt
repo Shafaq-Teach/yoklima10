@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -393,13 +394,13 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     fun broadcastNoticeWithNotification(title: String, content: String, author: String, groupId: Long = 0L, priority: String = "URGENT") {
         viewModelScope.launch {
             val grpName = if (groupId == 0L) "بارلىق بايراق ۋە قىسىملار" else (groups.value.find { it.id == groupId }?.name ?: "")
-            val id = repository.addDailyUpdate(groupId, grpName, author, title, content, _selectedDate.value, priority)
+            val newUpdate = repository.addDailyUpdate(groupId, grpName, author, title, content, _selectedDate.value, priority)
             
             // Deliver notification locally & trigger Android high priority status notification
             try {
                 com.example.util.AppNotificationManager.showUrgentNotification(
                     context = getApplication(),
-                    notificationId = id.toInt(),
+                    notificationId = newUpdate.id.toInt(),
                     title = title,
                     message = content,
                     author = author,
@@ -2021,7 +2022,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
 
     private fun startPeriodicSync() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            while (kotlinx.coroutines.isActive) {
+            while (isActive) {
                 kotlinx.coroutines.delay(25_000) // sync every 25 seconds
                 try {
                     val result = SupabaseSyncService.pullAllData()
