@@ -855,7 +855,7 @@ object SupabaseSyncService {
         deleteFromTable(baseUrl, key, "executive_contacts", "id=eq.$id")
     }
 
-    private fun deleteFromTable(baseUrl: String, key: String, tableName: String, queryParams: String): Boolean {
+    fun deleteFromTable(baseUrl: String, key: String, tableName: String, queryParams: String): Boolean {
         val request = Request.Builder()
             .url("$baseUrl/rest/v1/$tableName?$queryParams")
             .addHeader("apikey", key)
