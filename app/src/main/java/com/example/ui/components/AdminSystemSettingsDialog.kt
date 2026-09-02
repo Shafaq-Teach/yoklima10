@@ -68,6 +68,14 @@ fun AdminSystemSettingsDialog(
     val deviceSessions by viewModel.allDeviceSessions.collectAsState()
     val currentDevId = viewModel.currentDeviceId
 
+    val now = System.currentTimeMillis()
+    val activeThresholdMs = 50_000L
+    val onlineDevices = remember(deviceSessions, now) {
+        deviceSessions.filter { device ->
+            !device.isBlocked && (device.deviceId == currentDevId || (now - device.lastActiveTime) <= activeThresholdMs)
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(24.dp),
@@ -168,21 +176,27 @@ fun AdminSystemSettingsDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ئېچىلغان تېلېفونلار (${deviceSessions.size})",
+                                text = "نەق ئېچىلغان تېلېفونلار (${onlineDevices.size})",
                                 fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
-                        Text(
-                            text = "ئاكتىپ: ${deviceSessions.count { !it.isBlocked }}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF2E7D32),
-                            fontWeight = FontWeight.Bold
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFF2E7D32).copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "🟢 نەق ئاكتىپ: ${onlineDevices.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF2E7D32),
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
 
-                if (deviceSessions.isEmpty()) {
+                if (onlineDevices.isEmpty()) {
                     item {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -190,7 +204,7 @@ fun AdminSystemSettingsDialog(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text(
-                                text = "تېخى ھېچقانداق تېلېفون تىزىملانمىدى",
+                                text = "ھازىرچە نەق ئېچىلغان تېلېفون يوق",
                                 modifier = Modifier.padding(16.dp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -198,7 +212,7 @@ fun AdminSystemSettingsDialog(
                         }
                     }
                 } else {
-                    items(deviceSessions, key = { it.id }) { device ->
+                    items(onlineDevices, key = { it.deviceId }) { device ->
                         DeviceItemCard(
                             device = device,
                             isCurrentDevice = device.deviceId == currentDevId,

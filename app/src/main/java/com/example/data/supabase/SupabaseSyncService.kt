@@ -629,6 +629,9 @@ object SupabaseSyncService {
             usersJson.put(obj)
         }
         val res = upsertToTable(baseUrl, key, "users", usersJson.toString())
+        if (res.isSuccess) {
+            updateConsolidatedField(baseUrl, key, "users", usersJson)
+        }
         SupabaseSyncResult(
             isSuccess = res.isSuccess,
             message = res.message,
@@ -665,11 +668,45 @@ object SupabaseSyncService {
             groupsJson.put(obj)
         }
         val res = upsertToTable(baseUrl, key, "groups", groupsJson.toString())
+        if (res.isSuccess) {
+            updateConsolidatedField(baseUrl, key, "groups", groupsJson)
+        }
         SupabaseSyncResult(
             isSuccess = res.isSuccess,
             message = res.message,
             groupsUploaded = if (res.isSuccess) groups.size else 0
         )
+    }
+
+    suspend fun removeDeviceSession(deviceId: String): Boolean = withContext(Dispatchers.IO) {
+        val baseUrl = getProjectUrl()
+        val key = getApiKey()
+        try {
+            val existing = pullDeviceSessions().filter { it.deviceId != deviceId }
+            val devJson = JSONArray()
+            existing.forEach { d ->
+                val obj = JSONObject().apply {
+                    put("deviceId", d.deviceId)
+                    put("deviceName", d.deviceName)
+                    put("osVersion", d.osVersion)
+                    put("lastLoginUser", d.lastLoginUser)
+                    put("firstSeenTime", d.firstSeenTime)
+                    put("lastActiveTime", d.lastActiveTime)
+                    put("isBlocked", d.isBlocked)
+                    put("blockedReason", d.blockedReason)
+                }
+                devJson.put(obj)
+            }
+            val root = JSONObject().apply {
+                put("id", "device_sessions_store")
+                put("backup_timestamp", System.currentTimeMillis())
+                put("contacts", devJson)
+            }
+            val array = JSONArray().apply { put(root) }
+            upsertToTable(baseUrl, key, "app_cloud_backups", array.toString()).isSuccess
+        } catch (e: Exception) {
+            false
+        }
     }
 
     suspend fun pullDeviceSessions(): List<DeviceSessionEntity> = withContext(Dispatchers.IO) {
@@ -736,8 +773,13 @@ object SupabaseSyncService {
                 existing[s.deviceId] = s
             }
 
+            // Prune sessions older than 2 minutes so exited devices are removed
+            val now = System.currentTimeMillis()
+            val activeThresholdMs = 2 * 60 * 1000L
+            val pruned = existing.values.filter { (now - it.lastActiveTime) <= activeThresholdMs }
+
             val devJson = JSONArray()
-            existing.values.forEach { d ->
+            pruned.forEach { d ->
                 val obj = JSONObject().apply {
                     put("deviceId", d.deviceId)
                     put("deviceName", d.deviceName)
@@ -1029,6 +1071,37 @@ object SupabaseSyncService {
             upsertToTable(baseUrl, key, "app_cloud_backups", array.toString())
         } catch (e: Exception) {
             Log.w(TAG, "Consolidated backup upload skipped: ${e.message}")
+        }
+    }
+
+    private fun updateConsolidatedField(baseUrl: String, key: String, fieldName: String, arrayData: JSONArray) {
+        try {
+            val request = Request.Builder()
+                .url("$baseUrl/rest/v1/app_cloud_backups?id=eq.latest_backup&select=*")
+                .addHeader("apikey", key)
+                .addHeader("Authorization", "Bearer $key")
+                .get()
+                .build()
+
+            var rootObj = JSONObject()
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    if (body.isNotBlank()) {
+                        val arr = JSONArray(body)
+                        if (arr.length() > 0) {
+                            rootObj = arr.getJSONObject(0)
+                        }
+                    }
+                }
+            }
+            rootObj.put("id", "latest_backup")
+            rootObj.put("backup_timestamp", System.currentTimeMillis())
+            rootObj.put(fieldName, arrayData)
+            val patchArr = JSONArray().apply { put(rootObj) }
+            upsertToTable(baseUrl, key, "app_cloud_backups", patchArr.toString())
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to update consolidated field $fieldName: ${e.message}")
         }
     }
 

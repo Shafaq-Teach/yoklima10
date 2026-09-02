@@ -185,13 +185,11 @@ class AttendanceRepository(private val dao: AttendanceDao) {
 
     suspend fun updateUserCredentials(userId: Long, loginName: String, passwordPlain: String, displayName: String) {
         dao.updateUserCredentials(userId, loginName.trim(), passwordPlain.trim(), displayName.trim())
-        val user = dao.getUserById(userId)
-        if (user != null) {
-            try {
-                com.example.data.supabase.SupabaseSyncService.pushUsers(listOf(user))
-            } catch (e: Exception) {
-                // ignore
-            }
+        val allUsers = dao.getAllUsersList()
+        try {
+            com.example.data.supabase.SupabaseSyncService.pushUsers(allUsers)
+        } catch (e: Exception) {
+            // ignore
         }
     }
 
@@ -256,6 +254,12 @@ class AttendanceRepository(private val dao: AttendanceDao) {
 
     suspend fun setGroupSuspended(groupId: Long, isSuspended: Boolean) {
         dao.updateGroupSuspension(groupId, isSuspended)
+        val allGroups = dao.getAllGroupsList()
+        try {
+            com.example.data.supabase.SupabaseSyncService.pushGroups(allGroups)
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     suspend fun recordGroupActive(groupId: Long) {
@@ -529,9 +533,7 @@ class AttendanceRepository(private val dao: AttendanceDao) {
     suspend fun deleteDeviceSession(deviceId: String) {
         dao.deleteDeviceSession(deviceId)
         try {
-            val baseUrl = com.example.data.supabase.SupabaseSyncService.getProjectUrl()
-            val key = com.example.data.supabase.SupabaseSyncService.getApiKey()
-            com.example.data.supabase.SupabaseSyncService.deleteFromTable(baseUrl, key, "device_sessions", "deviceId=eq.$deviceId")
+            com.example.data.supabase.SupabaseSyncService.removeDeviceSession(deviceId)
         } catch (e: Exception) {
             // ignore
         }

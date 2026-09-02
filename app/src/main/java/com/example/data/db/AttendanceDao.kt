@@ -18,6 +18,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM groups ORDER BY id ASC")
     fun getAllGroups(): Flow<List<GroupEntity>>
 
+    @Query("SELECT * FROM groups ORDER BY id ASC")
+    suspend fun getAllGroupsList(): List<GroupEntity>
+
     @Query("SELECT * FROM groups WHERE id = :id LIMIT 1")
     suspend fun getGroupById(id: Long): GroupEntity?
 

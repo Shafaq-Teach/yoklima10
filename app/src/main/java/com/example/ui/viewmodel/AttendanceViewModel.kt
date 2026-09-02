@@ -2070,8 +2070,13 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     private fun startPeriodicSync() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             while (isActive) {
-                kotlinx.coroutines.delay(25_000) // sync every 25 seconds
+                kotlinx.coroutines.delay(18_000) // sync every 18 seconds
                 try {
+                    val curUser = _currentUser.value?.displayName ?: "باشقۇرغۇچى / ئەزا"
+                    val devName = "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL}"
+                    val osVer = "Android ${android.os.Build.VERSION.RELEASE}"
+                    repository.registerOrUpdateDeviceSession(currentDeviceId, devName, osVer, curUser)
+
                     val result = SupabaseSyncService.pullAllData()
                     result.onSuccess { data ->
                         val totalPulled = data.groups.size + data.users.size + data.members.size +
