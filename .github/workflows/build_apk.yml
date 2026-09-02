@@ -31,10 +31,10 @@ jobs:
           yes | sdkmanager --licenses || true
           sdkmanager "platforms;android-36" "build-tools;36.0.0" || true
 
-      - name: Setup Gradle 8.12
+      - name: Setup Gradle 9.3.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.12'
+          gradle-version: '9.3.1'
 
       - name: Ensure .env exists
         run: |
