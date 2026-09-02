@@ -1,0 +1,8 @@
+{
+  "name": "Remix يوقلىما سىستېمىسى",
+  "description": "يوقلىما باشقۇرۇش سىستېمىسى - ئۇيغۇرچە ۋە ئەرەپچە رول ئاساسىدىكى يوقلىما، ستاتىستىكا ۋە ئېكسپورت سىستېمىسى (Yoqlima Attendance Management System)",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
