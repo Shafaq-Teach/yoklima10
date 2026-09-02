@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.material3.AlertDialog
@@ -109,6 +110,9 @@ fun DailyUpdatesView(
     var updateToDelete by remember { mutableStateOf<DailyUpdateEntity?>(null) }
     var selectedDetailUpdate by remember { mutableStateOf<DailyUpdateEntity?>(null) }
     var selectedPriorityFilter by remember { mutableStateOf<String?>(null) } // null = all, or NORMAL, IMPORTANT, URGENT
+    var quickPostTitle by remember { mutableStateOf("") }
+    var quickPostContent by remember { mutableStateOf("") }
+    var quickPostPriority by remember { mutableStateOf("NORMAL") }
 
     val isAdmin = currentUser?.role == UserRole.ADMIN
     val currentUserGroupId = currentUser?.groupId
@@ -301,100 +305,123 @@ fun DailyUpdatesView(
                 }
             }
 
-            // Duty Group Live Attendance Status Card (Requirement 8)
-            if (dutySummary.dutyGroup != null) {
-                item {
-                    ElevatedCard(
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(14.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.NotificationImportant,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
+            // شۇ بايراق ۋە قىسىملارنىڭ شۇ كۈنلۈك يېڭىلىقلىرىنى يوللايدىغان كۆزنەك (Requirement 4)
+            val activeGid = targetGroupId ?: currentUser?.groupId ?: 0L
+            val activeGrp = groups.find { it.id == activeGid }
+            val activeGrpName = if (activeGid == 0L) "بارلىق بايراقلار" else (activeGrp?.name ?: "مەزكۇر قىسىم")
+
+            item {
+                ElevatedCard(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.elevatedCardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Campaign,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Column {
                                     Text(
-                                        text = "${s.dutyGroupTitle}: ${dutySummary.dutyGroup?.name}",
+                                        text = "شۇ كۈنلۈك يېڭىلىق ۋە ئۇقتۇرۇش يوللاش",
                                         style = MaterialTheme.typography.titleSmall,
                                         fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        color = MaterialTheme.colorScheme.onSurface
                                     )
-                                }
-
-                                if (dutySummary.lastSubmittedTime != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(6.dp),
-                                        color = MaterialTheme.colorScheme.secondaryContainer
-                                    ) {
-                                        Text(
-                                            text = "🕒 ${s.submittedAtLabel}: ${dutySummary.lastSubmittedTime}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                        )
-                                    }
+                                    Text(
+                                        text = "[$activeGrpName]",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        OutlinedTextField(
+                            value = quickPostTitle,
+                            onValueChange = { quickPostTitle = it },
+                            label = { Text("يېڭىلىق تېمىسى (مەسىلەن: بۈگۈنكى ئەھۋال)") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = quickPostContent,
+                            onValueChange = { quickPostContent = it },
+                            label = { Text("تەپسىلىي مەزمۇننى بۇ يەرگە يېزىڭ...") },
+                            minLines = 2,
+                            maxLines = 4,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FilterChip(
+                                    selected = quickPostPriority == "NORMAL",
+                                    onClick = { quickPostPriority = "NORMAL" },
+                                    label = { Text("نورمال", fontSize = 11.sp) }
+                                )
+                                FilterChip(
+                                    selected = quickPostPriority == "IMPORTANT",
+                                    onClick = { quickPostPriority = "IMPORTANT" },
+                                    label = { Text("مۇھىم", fontSize = 11.sp) }
+                                )
+                                FilterChip(
+                                    selected = quickPostPriority == "URGENT",
+                                    onClick = { quickPostPriority = "URGENT" },
+                                    label = { Text("جىددىي", fontSize = 11.sp) }
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    if (quickPostTitle.isNotBlank() || quickPostContent.isNotBlank()) {
+                                        val author = currentUser?.displayName ?: "مەسئۇل"
+                                        viewModel.addDailyUpdate(
+                                            groupId = activeGid,
+                                            groupName = activeGrpName,
+                                            title = quickPostTitle.ifBlank { "شۇ كۈنلۈك خەۋەر" },
+                                            content = quickPostContent.ifBlank { quickPostTitle },
+                                            priority = quickPostPriority,
+                                            authorName = author
+                                        )
+                                        quickPostTitle = ""
+                                        quickPostContent = ""
+                                        Toast.makeText(context, "يېڭىلىق مۇۋەپپەقىيەتلىك يوللاندى!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "تېما ياكى مەزمۇن يېزىڭ", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                enabled = quickPostTitle.isNotBlank() || quickPostContent.isNotBlank()
                             ) {
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = PresentGreenContainer
-                                ) {
-                                    Text(
-                                        text = "${s.statusPresent}: ${dutySummary.presentCount}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = PresentGreen,
-                                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 6.dp)
-                                    )
-                                }
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = AbsentRedContainer
-                                ) {
-                                    Text(
-                                        text = "${s.statusAbsent}: ${dutySummary.absentCount}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = AbsentRed,
-                                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 6.dp)
-                                    )
-                                }
-                                Surface(
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = ExcusedBlueContainer
-                                ) {
-                                    Text(
-                                        text = "${s.statusExcused}: ${dutySummary.excusedCount}",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ExcusedBlue,
-                                        modifier = Modifier.padding(vertical = 4.dp, horizontal = 6.dp)
-                                    )
-                                }
+                                Icon(Icons.Default.Send, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("يوللاش", fontWeight = FontWeight.Bold)
                             }
                         }
                     }

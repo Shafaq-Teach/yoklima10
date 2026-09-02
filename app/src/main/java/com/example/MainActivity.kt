@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         com.example.util.AppNotificationManager.initNotificationChannel(this)
+        com.example.util.BootAndNetworkReceiver.schedulePeriodicJob(this)
         setContent {
             val viewModel: AttendanceViewModel = viewModel()
             val isDarkMode by viewModel.isDarkMode.collectAsState()

@@ -887,6 +887,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 if (user.role == UserRole.GROUP_LEAD && user.groupId != null) {
                     _selectedGroupId.value = user.groupId
                 }
+                checkAndRegisterCurrentDevice(user.displayName)
                 onResult(true)
             } else {
                 onResult(false)
@@ -899,6 +900,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         if (user.role == UserRole.GROUP_LEAD && user.groupId != null) {
             _selectedGroupId.value = user.groupId
         }
+        checkAndRegisterCurrentDevice(user.displayName)
     }
 
     fun logout(orbId: Long? = null) {

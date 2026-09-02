@@ -659,14 +659,21 @@ fun AdminDashboardScreen(
                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
+                                                        val chosenSgName = if (currentDutyGroup.dutySubGroupCustomName.isNotBlank()) {
+                                                            currentDutyGroup.dutySubGroupCustomName
+                                                        } else if (dutyAttendanceSummary.dutySubGroupName.isNotBlank()) {
+                                                            dutyAttendanceSummary.dutySubGroupName
+                                                        } else {
+                                                            "${currentDutyGroup.dutySubGroup}-سانجاق"
+                                                        }
                                                         Text(
-                                                            text = "🎯 ${s.designatedDutySubGroup}:",
+                                                            text = "🎯 ${s.designatedDutySubGroup} (${currentDutyGroup.name}):",
                                                             style = MaterialTheme.typography.bodySmall,
                                                             fontWeight = FontWeight.Bold,
                                                             color = MaterialTheme.colorScheme.onPrimaryContainer
                                                         )
                                                         Text(
-                                                            text = dutyAttendanceSummary.dutySubGroupName.ifBlank { "1-سانجاق" },
+                                                            text = chosenSgName,
                                                             style = MaterialTheme.typography.titleSmall,
                                                             fontWeight = FontWeight.Black,
                                                             color = MaterialTheme.colorScheme.primary
@@ -2708,11 +2715,12 @@ fun AdminDashboardScreen(
     // Duty Sanjaq Selection Dialog
     if (showDutyGroupDialog) {
         var selectedDutyGroupId by remember(currentDutyGroup?.id) { mutableStateOf(currentDutyGroup?.id ?: groups.firstOrNull()?.id ?: 1L) }
-        val initialSelectedSgs = remember(currentDutyGroup?.dutySubGroupCustomName, currentDutyGroup?.dutySubGroup) {
-            viewModel.parseDutySubGroups(currentDutyGroup?.dutySubGroupCustomName ?: "", currentDutyGroup?.dutySubGroup ?: 1).toSet()
+        val targetGrp = groups.find { it.id == selectedDutyGroupId }
+        val initialSelectedSgs = remember(targetGrp?.dutySubGroupCustomName, targetGrp?.dutySubGroup, selectedDutyGroupId) {
+            viewModel.parseDutySubGroups(targetGrp?.dutySubGroupCustomName ?: "", targetGrp?.dutySubGroup ?: 1).toSet()
         }
         var selectedDutySgs by remember(initialSelectedSgs) { mutableStateOf(initialSelectedSgs) }
-        var dutyNotesInput by remember(dutyGroupNotes) { mutableStateOf(dutyGroupNotes) }
+        var dutyNotesInput by remember(targetGrp?.dutyNotes) { mutableStateOf(targetGrp?.dutyNotes ?: "") }
 
         AlertDialog(
             onDismissRequest = { showDutyGroupDialog = false },

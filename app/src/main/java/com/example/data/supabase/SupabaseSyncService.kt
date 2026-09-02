@@ -580,18 +580,7 @@ object SupabaseSyncService {
                 )
             }
 
-            val deviceSessions = pullTableData(baseUrl, key, "device_sessions") { obj ->
-                DeviceSessionEntity(
-                    deviceId = obj.optString("deviceId", obj.optString("device_id", "")),
-                    deviceName = obj.optString("deviceName", obj.optString("device_name", "ئۈسكۈنە")),
-                    osVersion = obj.optString("osVersion", obj.optString("os_version", "Android")),
-                    lastLoginUser = obj.optString("lastLoginUser", obj.optString("last_login_user", "")),
-                    firstSeenTime = obj.optLong("firstSeenTime", obj.optLong("first_seen_time", System.currentTimeMillis())),
-                    lastActiveTime = obj.optLong("lastActiveTime", obj.optLong("last_active_time", System.currentTimeMillis())),
-                    isBlocked = obj.optBoolean("isBlocked", obj.optBoolean("is_blocked", false)),
-                    blockedReason = obj.optString("blockedReason", obj.optString("blocked_reason", ""))
-                )
-            }.filter { it.deviceId.isNotBlank() }
+            val deviceSessions = pullDeviceSessions()
 
             val totalCount = updates.size + attendance.size + members.size + groups.size + users.size + equipment.size + contacts.size + receipts.size + deviceSessions.size
 
@@ -647,28 +636,138 @@ object SupabaseSyncService {
         )
     }
 
+    suspend fun pushGroups(groups: List<GroupEntity>): SupabaseSyncResult = withContext(Dispatchers.IO) {
+        val baseUrl = getProjectUrl()
+        val key = getApiKey()
+        val groupsJson = JSONArray()
+        groups.forEach { g ->
+            val obj = JSONObject().apply {
+                put("id", g.id)
+                put("name", g.name)
+                put("code", g.code)
+                put("description", g.description)
+                put("subLeader1", g.subLeader1)
+                put("subLeader1Contact", g.subLeader1Contact)
+                put("subLeader1Telegram", g.subLeader1Telegram)
+                put("subLeader1Whatsapp", g.subLeader1Whatsapp)
+                put("subLeader1Other", g.subLeader1Other)
+                put("subLeader2", g.subLeader2)
+                put("subLeader2Contact", g.subLeader2Contact)
+                put("subLeader2Telegram", g.subLeader2Telegram)
+                put("subLeader2Whatsapp", g.subLeader2Whatsapp)
+                put("subLeader2Other", g.subLeader2Other)
+                put("isSuspended", g.isSuspended)
+                put("lastActiveTime", g.lastActiveTime)
+                put("dutySubGroup", g.dutySubGroup)
+                put("dutySubGroupCustomName", g.dutySubGroupCustomName)
+                put("dutyNotes", g.dutyNotes)
+            }
+            groupsJson.put(obj)
+        }
+        val res = upsertToTable(baseUrl, key, "groups", groupsJson.toString())
+        SupabaseSyncResult(
+            isSuccess = res.isSuccess,
+            message = res.message,
+            groupsUploaded = if (res.isSuccess) groups.size else 0
+        )
+    }
+
+    suspend fun pullDeviceSessions(): List<DeviceSessionEntity> = withContext(Dispatchers.IO) {
+        val baseUrl = getProjectUrl()
+        val key = getApiKey()
+        val resultList = mutableListOf<DeviceSessionEntity>()
+
+        try {
+            val request = Request.Builder()
+                .url("$baseUrl/rest/v1/app_cloud_backups?id=eq.device_sessions_store&select=*")
+                .addHeader("apikey", key)
+                .addHeader("Authorization", "Bearer $key")
+                .get()
+                .build()
+
+            client.newCall(request).execute().use { response ->
+                if (response.isSuccessful) {
+                    val body = response.body?.string() ?: ""
+                    if (body.isNotBlank()) {
+                        val jsonArr = JSONArray(body)
+                        if (jsonArr.length() > 0) {
+                            val row = jsonArr.getJSONObject(0)
+                            val devArray = row.optJSONArray("contacts")
+                            if (devArray != null) {
+                                for (i in 0 until devArray.length()) {
+                                    val obj = devArray.getJSONObject(i)
+                                    val devId = obj.optString("deviceId", "")
+                                    if (devId.isNotBlank()) {
+                                        resultList.add(
+                                            DeviceSessionEntity(
+                                                deviceId = devId,
+                                                deviceName = obj.optString("deviceName", "ئۈسكۈنە"),
+                                                osVersion = obj.optString("osVersion", "Android"),
+                                                lastLoginUser = obj.optString("lastLoginUser", ""),
+                                                firstSeenTime = obj.optLong("firstSeenTime", System.currentTimeMillis()),
+                                                lastActiveTime = obj.optLong("lastActiveTime", System.currentTimeMillis()),
+                                                isBlocked = obj.optBoolean("isBlocked", false),
+                                                blockedReason = obj.optString("blockedReason", "")
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Pull from device_sessions_store failed: ${e.message}")
+        }
+
+        resultList
+    }
+
     suspend fun pushDeviceSessions(sessions: List<DeviceSessionEntity>): SupabaseSyncResult = withContext(Dispatchers.IO) {
         val baseUrl = getProjectUrl()
         val key = getApiKey()
-        val devJson = JSONArray()
-        sessions.forEach { d ->
-            val obj = JSONObject().apply {
-                put("deviceId", d.deviceId)
-                put("deviceName", d.deviceName)
-                put("osVersion", d.osVersion)
-                put("lastLoginUser", d.lastLoginUser)
-                put("firstSeenTime", d.firstSeenTime)
-                put("lastActiveTime", d.lastActiveTime)
-                put("isBlocked", d.isBlocked)
-                put("blockedReason", d.blockedReason)
+
+        try {
+            // First pull existing devices from store to merge them
+            val existing = pullDeviceSessions().associateBy { it.deviceId }.toMutableMap()
+            // Merge current sessions
+            sessions.forEach { s ->
+                existing[s.deviceId] = s
             }
-            devJson.put(obj)
+
+            val devJson = JSONArray()
+            existing.values.forEach { d ->
+                val obj = JSONObject().apply {
+                    put("deviceId", d.deviceId)
+                    put("deviceName", d.deviceName)
+                    put("osVersion", d.osVersion)
+                    put("lastLoginUser", d.lastLoginUser)
+                    put("firstSeenTime", d.firstSeenTime)
+                    put("lastActiveTime", d.lastActiveTime)
+                    put("isBlocked", d.isBlocked)
+                    put("blockedReason", d.blockedReason)
+                }
+                devJson.put(obj)
+            }
+
+            val root = JSONObject().apply {
+                put("id", "device_sessions_store")
+                put("backup_timestamp", System.currentTimeMillis())
+                put("contacts", devJson)
+            }
+            val array = JSONArray().apply { put(root) }
+            val res = upsertToTable(baseUrl, key, "app_cloud_backups", array.toString())
+            SupabaseSyncResult(
+                isSuccess = res.isSuccess,
+                message = res.message
+            )
+        } catch (e: Exception) {
+            SupabaseSyncResult(
+                isSuccess = false,
+                message = e.localizedMessage ?: "خاتالىق"
+            )
         }
-        val res = upsertToTable(baseUrl, key, "device_sessions", devJson.toString())
-        SupabaseSyncResult(
-            isSuccess = res.isSuccess,
-            message = res.message
-        )
     }
 
     suspend fun upsertDailyUpdate(update: DailyUpdateEntity): Boolean = withContext(Dispatchers.IO) {

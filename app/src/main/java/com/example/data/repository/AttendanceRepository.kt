@@ -197,6 +197,11 @@ class AttendanceRepository(private val dao: AttendanceDao) {
 
     suspend fun updateGroup(group: GroupEntity) {
         dao.updateGroup(group)
+        try {
+            com.example.data.supabase.SupabaseSyncService.pushGroups(listOf(group))
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     suspend fun addGroup(
