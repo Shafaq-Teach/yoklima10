@@ -638,7 +638,8 @@ fun AdminDashboardScreen(
                                         }
                                     }
 
-                                    if (currentDutyGroup != null) {
+                                    val cdg = currentDutyGroup
+                                    if (cdg != null) {
                                         Spacer(modifier = Modifier.height(10.dp))
                                         Surface(
                                             shape = RoundedCornerShape(12.dp),
@@ -659,15 +660,15 @@ fun AdminDashboardScreen(
                                                         horizontalArrangement = Arrangement.SpaceBetween,
                                                         verticalAlignment = Alignment.CenterVertically
                                                     ) {
-                                                        val chosenSgName = if (currentDutyGroup.dutySubGroupCustomName.isNotBlank()) {
-                                                            currentDutyGroup.dutySubGroupCustomName
+                                                        val chosenSgName = if (cdg.dutySubGroupCustomName.isNotBlank()) {
+                                                            cdg.dutySubGroupCustomName
                                                         } else if (dutyAttendanceSummary.dutySubGroupName.isNotBlank()) {
                                                             dutyAttendanceSummary.dutySubGroupName
                                                         } else {
-                                                            "${currentDutyGroup.dutySubGroup}-سانجاق"
+                                                            "${cdg.dutySubGroup}-سانجاق"
                                                         }
                                                         Text(
-                                                            text = "🎯 ${s.designatedDutySubGroup} (${currentDutyGroup.name}):",
+                                                            text = "🎯 ${s.designatedDutySubGroup} (${cdg.name}):",
                                                             style = MaterialTheme.typography.bodySmall,
                                                             fontWeight = FontWeight.Bold,
                                                             color = MaterialTheme.colorScheme.onPrimaryContainer

@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -400,18 +401,18 @@ fun DailyUpdatesView(
                             Button(
                                 onClick = {
                                     if (quickPostTitle.isNotBlank() || quickPostContent.isNotBlank()) {
-                                        val author = currentUser?.displayName ?: "مەسئۇل"
                                         viewModel.addDailyUpdate(
                                             groupId = activeGid,
                                             groupName = activeGrpName,
                                             title = quickPostTitle.ifBlank { "شۇ كۈنلۈك خەۋەر" },
                                             content = quickPostContent.ifBlank { quickPostTitle },
                                             priority = quickPostPriority,
-                                            authorName = author
+                                            onSuccess = {
+                                                Toast.makeText(context, "يېڭىلىق مۇۋەپپەقىيەتلىك يوللاندى!", Toast.LENGTH_SHORT).show()
+                                            }
                                         )
                                         quickPostTitle = ""
                                         quickPostContent = ""
-                                        Toast.makeText(context, "يېڭىلىق مۇۋەپپەقىيەتلىك يوللاندى!", Toast.LENGTH_SHORT).show()
                                     } else {
                                         Toast.makeText(context, "تېما ياكى مەزمۇن يېزىڭ", Toast.LENGTH_SHORT).show()
                                     }
