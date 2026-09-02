@@ -104,7 +104,7 @@ fun BulkMemberImportDialog(
     val groups by viewModel.groups.collectAsState()
 
     val prefs = remember { context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE) }
-    val defaultKey = BuildConfig.GEMINI_API_KEY
+    val defaultKey = com.example.BuildConfig.GEMINI_API_KEY
     var apiKey by remember { mutableStateOf(prefs.getString("user_gemini_api_key", defaultKey) ?: defaultKey) }
     var showApiKeyDialog by remember { mutableStateOf(false) }
 

@@ -55,16 +55,14 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            let log = 'No build.log file';
-            if (fs.existsSync('build.log')) {
-              const lines = fs.readFileSync('build.log', 'utf8').split('\n');
-              log = lines.slice(-80).join('\n');
-            }
+            let content = fs.existsSync('build.log') ? fs.readFileSync('build.log', 'utf8') : '';
+            let errorLines = content.split('\n').filter(l => l.startsWith('e: ') || l.includes('e: file://') || l.includes('error:')).slice(0, 60).join('\n');
+            if (!errorLines) errorLines = content.split('\n').slice(-120).join('\n');
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: 'Build Failure Log: ' + context.runNumber,
-              body: '```\n' + log + '\n```'
+              title: 'Compilation Errors: ' + context.runNumber,
+              body: '```\n' + errorLines + '\n```'
             });
 
       - name: Upload Build Log
