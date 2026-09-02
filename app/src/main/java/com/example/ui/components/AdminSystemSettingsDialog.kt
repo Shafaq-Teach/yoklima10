@@ -43,6 +43,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -212,14 +213,18 @@ fun AdminSystemSettingsDialog(
                         }
                     }
                 } else {
-                    items(onlineDevices, key = { it.deviceId }) { device ->
-                        DeviceItemCard(
-                            device = device,
-                            isCurrentDevice = device.deviceId == currentDevId,
-                            onTerminate = { viewModel.terminateDevice(device.deviceId) },
-                            onRestore = { viewModel.restoreDevice(device.deviceId) },
-                            onDelete = { viewModel.deleteDevice(device.deviceId) }
-                        )
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            onlineDevices.forEach { device ->
+                                DeviceItemCard(
+                                    device = device,
+                                    isCurrentDevice = device.deviceId == currentDevId,
+                                    onTerminate = { viewModel.terminateDevice(device.deviceId) },
+                                    onRestore = { viewModel.restoreDevice(device.deviceId) },
+                                    onDelete = { viewModel.deleteDevice(device.deviceId) }
+                                )
+                            }
+                        }
                     }
                 }
             }
