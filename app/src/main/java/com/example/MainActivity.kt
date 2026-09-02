@@ -52,17 +52,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        com.example.util.AppNotificationManager.initNotificationChannel(this)
         setContent {
             val viewModel: AttendanceViewModel = viewModel()
             val isDarkMode by viewModel.isDarkMode.collectAsState()
             val themePreset by viewModel.themePreset.collectAsState()
+            val currentLanguage by viewModel.currentLanguage.collectAsState()
+            val layoutDirection = if (currentLanguage == com.example.i18n.Language.ENGLISH) {
+                LayoutDirection.Ltr
+            } else {
+                LayoutDirection.Rtl
+            }
 
             MyApplicationTheme(
                 darkTheme = isDarkMode,
                 themePreset = themePreset
             ) {
-                // Uyghur and Arabic both use Right-to-Left (RTL) typography and layout direction
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.background

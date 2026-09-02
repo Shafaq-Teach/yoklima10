@@ -118,7 +118,7 @@ fun DailyUpdatesView(
         viewModel.pullAllFromSupabase(silent = true)
     }
 
-    // Auto mark notices delivered for logged-in group lead
+    // Auto mark notices delivered for logged-in group lead and read locally on this device
     androidx.compose.runtime.LaunchedEffect(allUpdates, currentUserGroupId) {
         if (currentUserGroupId != null && currentUserGroupId > 0L) {
             allUpdates.forEach { u ->
@@ -127,6 +127,10 @@ fun DailyUpdatesView(
                 }
             }
         }
+        allUpdates.forEach { u ->
+            com.example.util.LocalReadNoticeTracker.markNoticeAsRead(context, u.id)
+        }
+        com.example.util.AppNotificationManager.clearAllBadgeNotifications(context)
     }
 
     // Filter updates

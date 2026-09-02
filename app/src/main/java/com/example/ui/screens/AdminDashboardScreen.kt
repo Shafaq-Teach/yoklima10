@@ -1465,34 +1465,18 @@ fun AdminDashboardScreen(
                                         ) {
                                             Column(modifier = Modifier.padding(16.dp)) {
                                                 Text(
-                                                    text = "4. تىل تاللاش (Language)",
+                                                    text = "4. تىل تاللاش (Language Selection)",
                                                     style = MaterialTheme.typography.titleMedium,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSurface
                                                 )
                                                 Spacer(modifier = Modifier.height(10.dp))
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                                ) {
-                                                    Language.values().forEach { lang ->
-                                                        val isLangSel = language == lang
-                                                        val labelText = when (lang) {
-                                                            Language.UYGHUR -> "ئۇيغۇرچە"
-                                                            Language.ARABIC -> "العربية"
-                                                        }
-                                                        FilterChip(
-                                                            selected = isLangSel,
-                                                            onClick = { viewModel.setLanguage(lang) },
-                                                            label = { Text(labelText, fontSize = 11.sp, fontWeight = if (isLangSel) FontWeight.Bold else FontWeight.Normal) },
-                                                            colors = FilterChipDefaults.filterChipColors(
-                                                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                                            ),
-                                                            modifier = Modifier.weight(1f)
-                                                        )
-                                                    }
-                                                }
+                                                LanguageToggleHeader(
+                                                    currentLanguage = language,
+                                                    onToggle = { viewModel.toggleLanguage() },
+                                                    onLanguageSelected = { viewModel.setLanguage(it) },
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
                                             }
                                         }
                                     }

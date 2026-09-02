@@ -101,13 +101,15 @@ data class EquipmentSummaryStats(
 
 class AttendanceViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: AttendanceRepository
+    val repository: AttendanceRepository
 
     init {
         val database = AppDatabase.getInstance(application)
         repository = AttendanceRepository(database.attendanceDao())
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             repository.ensureInitialized()
+            checkAndRegisterCurrentDevice()
+            com.example.util.NetworkSyncManager.startListening(application, repository)
             // Pull latest cloud data immediately on app launch
             pullAllFromSupabase(silent = true)
             // Start periodic background sync every 25 seconds
@@ -862,10 +864,10 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun toggleLanguage() {
-        val nextLang = if (_currentLanguage.value == Language.UYGHUR) {
-            Language.ARABIC
-        } else {
-            Language.UYGHUR
+        val nextLang = when (_currentLanguage.value) {
+            Language.UYGHUR -> Language.ARABIC
+            Language.ARABIC -> Language.ENGLISH
+            Language.ENGLISH -> Language.UYGHUR
         }
         _currentLanguage.value = nextLang
         appPrefs.edit().putString("current_language", nextLang.name).apply()
@@ -2004,7 +2006,8 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 equipment = allEquipment.value,
                 updates = allDailyUpdates.value,
                 contacts = allExecutiveContacts.value,
-                receipts = allNoticeReceipts.value
+                receipts = allNoticeReceipts.value,
+                deviceSessions = allDeviceSessions.value
             )
             _lastSyncResult.value = res
             _isSupabaseSyncing.value = false
@@ -2020,6 +2023,47 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    private suspend fun processRestoredSupabaseData(data: com.example.data.supabase.SupabasePullData) {
+        repository.restoreFromSupabaseData(data)
+
+        // 1. Session Invalidation: Check if current logged-in user credentials were changed by Super Admin
+        val current = _currentUser.value
+        if (current != null) {
+            val updatedSelf = data.users.find { it.id == current.id }
+            if (updatedSelf != null && (updatedSelf.loginName != current.loginName || updatedSelf.passwordHash != current.passwordHash)) {
+                _currentUser.value = null
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    Toast.makeText(getApplication(), "ھېسابات ئۇچۇرى ئۆزگەرتىلدى. كونا ھېسابات بىكار قىلىندى، يېڭى ھېسابات بىلەن قايتا كىرىڭ.", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+
+        // 2. Remote Device Termination Check
+        val blocked = repository.isDeviceBlocked(currentDeviceId)
+        _isCurrentDeviceBlocked.value = blocked
+
+        // 3. Local per-device unread notification alert & app icon badge
+        if (data.updates.isNotEmpty()) {
+            val unreadCount = com.example.util.LocalReadNoticeTracker.getUnreadCount(getApplication(), data.updates)
+            data.updates.forEach { u ->
+                val isRead = com.example.util.LocalReadNoticeTracker.isNoticeRead(getApplication(), u.id)
+                val notified = com.example.util.LocalReadNoticeTracker.hasBeenNotified(getApplication(), u.id)
+                if (!isRead && !notified) {
+                    com.example.util.AppNotificationManager.showUrgentNotification(
+                        context = getApplication(),
+                        notificationId = u.id.toInt(),
+                        title = u.title,
+                        message = u.content,
+                        author = u.authorName,
+                        groupTargetName = u.groupName,
+                        unreadCount = unreadCount
+                    )
+                    com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), u.id)
+                }
+            }
+        }
+    }
+
     private fun startPeriodicSync() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             while (isActive) {
@@ -2029,9 +2073,9 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                     result.onSuccess { data ->
                         val totalPulled = data.groups.size + data.users.size + data.members.size +
                                 data.attendance.size + data.equipment.size + data.updates.size +
-                                data.contacts.size + data.receipts.size
+                                data.contacts.size + data.receipts.size + data.deviceSessions.size
                         if (totalPulled > 0) {
-                            repository.restoreFromSupabaseData(data)
+                            processRestoredSupabaseData(data)
                         }
                     }
                 } catch (e: Exception) {
@@ -2053,9 +2097,9 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             result.onSuccess { data ->
                 val totalPulled = data.groups.size + data.users.size + data.members.size +
                         data.attendance.size + data.equipment.size + data.updates.size +
-                        data.contacts.size + data.receipts.size
+                        data.contacts.size + data.receipts.size + data.deviceSessions.size
                 if (totalPulled > 0) {
-                    repository.restoreFromSupabaseData(data)
+                    processRestoredSupabaseData(data)
                     val msg = "Supabase تىن $totalPulled تۈرلۈك مەلۇمات مۇۋەپپەقىيەتلىك ئەسلىگە كەلتۈرۈلدى!"
                     if (context != null && !silent) {
                         Toast.makeText(context, msg, Toast.LENGTH_LONG).show()

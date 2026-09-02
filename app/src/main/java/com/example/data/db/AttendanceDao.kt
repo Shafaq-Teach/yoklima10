@@ -64,6 +64,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM users WHERE groupId = :groupId LIMIT 1")
     suspend fun getUserByGroupId(groupId: Long): UserEntity?
 
+    @Query("SELECT * FROM users WHERE id = :userId LIMIT 1")
+    suspend fun getUserById(userId: Long): UserEntity?
+
     @Query("DELETE FROM users WHERE groupId = :groupId")
     suspend fun deleteUserByGroupId(groupId: Long)
 
@@ -310,6 +313,9 @@ interface AttendanceDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateDeviceSession(session: com.example.data.model.DeviceSessionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertDeviceSessionsBatch(sessions: List<com.example.data.model.DeviceSessionEntity>)
 
     @Query("UPDATE device_sessions SET isBlocked = :isBlocked, blockedReason = :reason WHERE deviceId = :deviceId")
     suspend fun updateDeviceBlockStatus(deviceId: String, isBlocked: Boolean, reason: String)

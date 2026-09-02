@@ -478,7 +478,8 @@ fun LoginScreen(
 
                 LanguageToggleHeader(
                     currentLanguage = language,
-                    onToggle = { viewModel.toggleLanguage() }
+                    onToggle = { viewModel.toggleLanguage() },
+                    onLanguageSelected = { viewModel.setLanguage(it) }
                 )
             }
         }

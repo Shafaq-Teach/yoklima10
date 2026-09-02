@@ -173,10 +173,26 @@ class AttendanceRepository(private val dao: AttendanceDao) {
 
     suspend fun resetUserPassword(userId: Long, newPasswordPlain: String) {
         dao.updatePassword(userId, newPasswordPlain.trim())
+        val user = dao.getUserById(userId)
+        if (user != null) {
+            try {
+                com.example.data.supabase.SupabaseSyncService.pushUsers(listOf(user))
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
     }
 
     suspend fun updateUserCredentials(userId: Long, loginName: String, passwordPlain: String, displayName: String) {
         dao.updateUserCredentials(userId, loginName.trim(), passwordPlain.trim(), displayName.trim())
+        val user = dao.getUserById(userId)
+        if (user != null) {
+            try {
+                com.example.data.supabase.SupabaseSyncService.pushUsers(listOf(user))
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
     }
 
     suspend fun updateGroup(group: GroupEntity) {
@@ -467,29 +483,53 @@ class AttendanceRepository(private val dao: AttendanceDao) {
     ) {
         val existing = dao.getDeviceSession(deviceId)
         val now = System.currentTimeMillis()
-        if (existing == null) {
-            dao.insertOrUpdateDeviceSession(
-                com.example.data.model.DeviceSessionEntity(
-                    deviceId = deviceId,
-                    deviceName = deviceName,
-                    osVersion = osVersion,
-                    lastLoginUser = userName,
-                    firstSeenTime = now,
-                    lastActiveTime = now,
-                    isBlocked = false
-                )
+        val session = if (existing == null) {
+            com.example.data.model.DeviceSessionEntity(
+                deviceId = deviceId,
+                deviceName = deviceName,
+                osVersion = osVersion,
+                lastLoginUser = userName,
+                firstSeenTime = now,
+                lastActiveTime = now,
+                isBlocked = false
             )
         } else {
-            dao.updateDeviceActiveTime(deviceId, now, userName)
+            existing.copy(
+                deviceName = deviceName,
+                osVersion = osVersion,
+                lastLoginUser = userName,
+                lastActiveTime = now
+            )
+        }
+        dao.insertOrUpdateDeviceSession(session)
+        try {
+            com.example.data.supabase.SupabaseSyncService.pushDeviceSessions(listOf(session))
+        } catch (e: Exception) {
+            // ignore
         }
     }
 
     suspend fun setDeviceBlockStatus(deviceId: String, isBlocked: Boolean, reason: String = "") {
         dao.updateDeviceBlockStatus(deviceId, isBlocked, reason)
+        val session = dao.getDeviceSession(deviceId)
+        if (session != null) {
+            try {
+                com.example.data.supabase.SupabaseSyncService.pushDeviceSessions(listOf(session))
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
     }
 
     suspend fun deleteDeviceSession(deviceId: String) {
         dao.deleteDeviceSession(deviceId)
+        try {
+            val baseUrl = com.example.data.supabase.SupabaseSyncService.getProjectUrl()
+            val key = com.example.data.supabase.SupabaseSyncService.getApiKey()
+            com.example.data.supabase.SupabaseSyncService.deleteFromTable(baseUrl, key, "device_sessions", "deviceId=eq.$deviceId")
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     suspend fun isDeviceBlocked(deviceId: String): Boolean {
@@ -506,6 +546,7 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         if (data.updates.isNotEmpty()) dao.insertDailyUpdatesBatch(data.updates)
         if (data.contacts.isNotEmpty()) dao.insertExecutiveContactsBatch(data.contacts)
         if (data.receipts.isNotEmpty()) dao.insertReceiptsBatch(data.receipts)
+        if (data.deviceSessions.isNotEmpty()) dao.insertDeviceSessionsBatch(data.deviceSessions)
     }
 
     suspend fun resetDatabase() {

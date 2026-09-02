@@ -134,28 +134,12 @@ fun GroupLeadSettingsDialog(
                                 )
                             }
                             Spacer(modifier = Modifier.height(10.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Language.values().forEach { lang ->
-                                    val isLangSel = language == lang
-                                    val labelText = when (lang) {
-                                        Language.UYGHUR -> "ئۇيغۇرچە"
-                                        Language.ARABIC -> "العربية"
-                                    }
-                                    FilterChip(
-                                        selected = isLangSel,
-                                        onClick = { viewModel.setLanguage(lang) },
-                                        label = { Text(labelText, fontSize = 12.sp, fontWeight = if (isLangSel) FontWeight.Bold else FontWeight.Normal) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                                        ),
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
+                            LanguageToggleHeader(
+                                currentLanguage = language,
+                                onToggle = { viewModel.toggleLanguage() },
+                                onLanguageSelected = { viewModel.setLanguage(it) },
+                                modifier = Modifier.fillMaxWidth()
+                            )
                         }
                     }
                 }

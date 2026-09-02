@@ -43,7 +43,8 @@ object AppNotificationManager {
         title: String,
         message: String,
         author: String = "",
-        groupTargetName: String = ""
+        groupTargetName: String = "",
+        unreadCount: Int = 1
     ) {
         initNotificationChannel(context)
 
@@ -72,13 +73,25 @@ object AppNotificationManager {
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setSound(soundUri)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setVibrate(longArrayOf(0, 350, 200, 350, 200, 400))
             .setLights(Color.CYAN, 1000, 500)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setNumber(1)
+            .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
+            .setNumber(unreadCount)
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         notificationManager?.notify(notificationId, builder.build())
+    }
+
+    fun clearNotification(context: Context, notificationId: Int) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        notificationManager?.cancel(notificationId)
+    }
+
+    fun clearAllBadgeNotifications(context: Context) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+        notificationManager?.cancelAll()
     }
 }

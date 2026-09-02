@@ -67,37 +67,89 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 @Composable
 fun LanguageToggleHeader(
     currentLanguage: Language,
-    onToggle: () -> Unit,
+    onToggle: () -> Unit = {},
+    onLanguageSelected: (Language) -> Unit = { onToggle() },
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.primaryContainer,
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onToggle() }
-            .testTag("language_toggle")
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .clickable { expanded = true }
+                .testTag("language_toggle")
         ) {
-            Icon(
-                imageVector = Icons.Default.Language,
-                contentDescription = "Language",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = if (currentLanguage == Language.UYGHUR) "ئۇيغۇرچە ⇄ العربية" else "العربية ⇄ ئۇيغۇرچە",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Language,
+                    contentDescription = "Language",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = currentLanguage.nativeName,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            Language.entries.forEach { lang ->
+                val isSelected = lang == currentLanguage
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "${lang.nativeName} (${lang.displayName})",
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                    },
+                    leadingIcon = {
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    },
+                    onClick = {
+                        expanded = false
+                        onLanguageSelected(lang)
+                    }
+                )
+            }
         }
     }
 }
