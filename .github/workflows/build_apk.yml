@@ -43,7 +43,10 @@ jobs:
 
       - name: Build Debug APK
         run: |
-          gradle :app:assembleDebug --stacktrace --no-daemon -x test -x lint 2>&1 | tee build.log
+          set -o pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon -x test -x lint 2>&1 | tee build.log || { echo "=== GRADLE FAILED ==="; tail -n 120 build.log; exit 1; }
+          echo "=== SEARCHING FOR APK ==="
+          find . -name "*.apk" -ls
 
       - name: Upload Build Log
         if: always()
