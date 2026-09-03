@@ -836,6 +836,82 @@ object SupabaseSyncService {
         deleteFromTable(baseUrl, key, "daily_updates", "id=eq.$id")
     }
 
+    /**
+     * Ultra-fast lightweight poll for urgent updates (takes ~100-200ms)
+     */
+    suspend fun pullFastDailyUpdates(): List<DailyUpdateEntity> = withContext(Dispatchers.IO) {
+        val baseUrl = getProjectUrl()
+        val key = getApiKey()
+        val list = mutableListOf<DailyUpdateEntity>()
+        try {
+            val request = Request.Builder()
+                .url("$baseUrl/rest/v1/daily_updates?select=*&order=id.desc&limit=15")
+                .addHeader("apikey", key)
+                .addHeader("Authorization", "Bearer $key")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            if (response.isSuccessful) {
+                val bodyStr = response.body?.string() ?: ""
+                val arr = JSONArray(bodyStr)
+                for (i in 0 until arr.length()) {
+                    val u = arr.getJSONObject(i)
+                    list.add(
+                        DailyUpdateEntity(
+                            id = u.optLong("id", 0L),
+                            groupId = u.optLong("groupId", 0L),
+                            groupName = u.optString("groupName", ""),
+                            authorName = u.optString("authorName", ""),
+                            title = u.optString("title", ""),
+                            content = u.optString("content", ""),
+                            date = u.optString("date", ""),
+                            priority = u.optString("priority", "NORMAL"),
+                            timestamp = u.optLong("timestamp", 0L)
+                        )
+                    )
+                }
+            } else {
+                // fallback to backup store
+                val backupRequest = Request.Builder()
+                    .url("$baseUrl/rest/v1/app_cloud_backups?id=eq.latest_backup&select=updates")
+                    .addHeader("apikey", key)
+                    .addHeader("Authorization", "Bearer $key")
+                    .get()
+                    .build()
+                val backupResp = client.newCall(backupRequest).execute()
+                if (backupResp.isSuccessful) {
+                    val bStr = backupResp.body?.string() ?: ""
+                    val bArr = JSONArray(bStr)
+                    if (bArr.length() > 0) {
+                        val updatesArr = bArr.getJSONObject(0).optJSONArray("updates")
+                        if (updatesArr != null) {
+                            for (i in 0 until updatesArr.length()) {
+                                val u = updatesArr.getJSONObject(i)
+                                list.add(
+                                    DailyUpdateEntity(
+                                        id = u.optLong("id", 0L),
+                                        groupId = u.optLong("groupId", 0L),
+                                        groupName = u.optString("groupName", ""),
+                                        authorName = u.optString("authorName", ""),
+                                        title = u.optString("title", ""),
+                                        content = u.optString("content", ""),
+                                        date = u.optString("date", ""),
+                                        priority = u.optString("priority", "NORMAL"),
+                                        timestamp = u.optLong("timestamp", 0L)
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Fast pull error: ${e.message}")
+        }
+        list
+    }
+
     suspend fun upsertAttendanceRecord(record: AttendanceRecordEntity): Boolean = withContext(Dispatchers.IO) {
         val baseUrl = getProjectUrl()
         val key = getApiKey()

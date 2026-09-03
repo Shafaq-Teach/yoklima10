@@ -29,6 +29,7 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
 
         schedulePeriodicJob(context)
         scheduleSyncAlarm(context)
+        LiveSyncForegroundService.startService(context.applicationContext)
 
         if (isNetworkConnected(context)) {
             val pendingResult = goAsync()

@@ -70,10 +70,10 @@ fun AdminSystemSettingsDialog(
     val currentDevId = viewModel.currentDeviceId
 
     val now = System.currentTimeMillis()
-    val activeThresholdMs = 50_000L
+    val activeThresholdMs = 24 * 60 * 60 * 1000L // 24 hours
     val onlineDevices = remember(deviceSessions, now) {
         deviceSessions.filter { device ->
-            !device.isBlocked && (device.deviceId == currentDevId || (now - device.lastActiveTime) <= activeThresholdMs)
+            device.deviceId == currentDevId || (now - device.lastActiveTime) <= activeThresholdMs
         }
     }
 

@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
         com.example.util.AppNotificationManager.initNotificationChannel(this)
         com.example.util.BootAndNetworkReceiver.schedulePeriodicJob(this)
         com.example.util.BootAndNetworkReceiver.scheduleSyncAlarm(this)
+        com.example.util.LiveSyncForegroundService.startService(this)
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {

@@ -91,6 +91,12 @@ class AttendanceRepository(private val dao: AttendanceDao) {
 
     suspend fun removeUserPassword(userId: Long) {
         dao.updatePassword(userId, "")
+        try {
+            val allUsers = dao.getAllUsersList()
+            SupabaseSyncService.pushUsers(allUsers)
+        } catch (e: Exception) {
+            // ignore
+        }
     }
 
     suspend fun saveAttendanceRecord(

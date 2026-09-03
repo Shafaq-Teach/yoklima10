@@ -1282,62 +1282,6 @@ fun AdminDashboardScreen(
                                     contentPadding = PaddingValues(16.dp),
                                     verticalArrangement = Arrangement.spacedBy(14.dp)
                                 ) {
-                                    // 1. Cloud Database (بۇلۇت بازىسى)
-                                    item {
-                                        ElevatedCard(
-                                            shape = RoundedCornerShape(16.dp),
-                                            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surface),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Column(modifier = Modifier.padding(16.dp)) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(36.dp)
-                                                            .clip(CircleShape)
-                                                            .background(Color(0xFF2E9A68).copy(alpha = 0.15f)),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(
-                                                            imageVector = Icons.Default.CloudSync,
-                                                            contentDescription = null,
-                                                            tint = Color(0xFF2E9A68),
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-                                                    Spacer(modifier = Modifier.width(10.dp))
-                                                    Column {
-                                                        Text(
-                                                            text = "1. بۇلۇت بازىسى (Cloud Database)",
-                                                            style = MaterialTheme.typography.titleMedium,
-                                                            fontWeight = FontWeight.Bold,
-                                                            color = MaterialTheme.colorScheme.onSurface
-                                                        )
-                                                        Text(
-                                                            text = "Supabase بۇلۇت بازىسى بىلەن يوقلىما ۋە سانلىق مەلۇماتلارنى ماسقەدەملەش",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                        )
-                                                    }
-                                                }
-                                                Spacer(modifier = Modifier.height(12.dp))
-                                                Button(
-                                                    onClick = { showSupabaseSyncDialog = true },
-                                                    shape = RoundedCornerShape(10.dp),
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E9A68)),
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(18.dp))
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text("بۇلۇت بازىسى ۋە ماسقەدەملەش كۆزنىكىنى ئېچىش", fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                        }
-                                    }
-
                                     // 2. Color Theme Selection (رەڭ تاللاش)
                                     item {
                                         ElevatedCard(
@@ -1904,99 +1848,6 @@ fun AdminDashboardScreen(
                             }
                         }
 
-                        // Supabase Cloud Sync & Backup Card
-                        item {
-                            ElevatedCard(
-                                shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.elevatedCardColors(
-                                    containerColor = Color(0xFF3ECF8E).copy(alpha = 0.12f)
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(18.dp)) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(44.dp)
-                                                    .clip(RoundedCornerShape(12.dp))
-                                                    .background(Color(0xFF2E9A68)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.CloudSync,
-                                                    contentDescription = null,
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size(26.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.width(12.dp))
-                                            Column {
-                                                Text(
-                                                    text = "Supabase بۇلۇت ئۇلىنىشى ۋە زاپاسلاش",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Text(
-                                                    text = "Project: sjfvcxijfgbmeryuezoc",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                        }
-
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = Color(0xFF2E9A68).copy(alpha = 0.2f)
-                                        ) {
-                                            Text(
-                                                text = "Cloud DB",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Color(0xFF1E6C47),
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                            )
-                                        }
-                                    }
-
-                                    Spacer(modifier = Modifier.height(12.dp))
-
-                                    Text(
-                                        text = "بارلىق گۇرۇپپىلار، ئەزالار، يوقلىما، قوراللار، ئۇقتۇرۇشلار ۋە مەسئۇللار تىزىملىكىنى Supabase بۇلۇت بازىسىغا يۈكلەش، تەكشۈرۈش ياكى ئەسلىگە كەلتۈرۈش.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    Spacer(modifier = Modifier.height(14.dp))
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Button(
-                                            onClick = { showSupabaseSyncDialog = true },
-                                            shape = RoundedCornerShape(12.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = Color(0xFF2E9A68)
-                                            ),
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .testTag("open_supabase_sync_card_btn")
-                                        ) {
-                                            Icon(Icons.Default.CloudSync, contentDescription = null, modifier = Modifier.size(18.dp))
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text("بۇلۇت مەركىزىنى ئېچىش", fontWeight = FontWeight.Bold)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         // CSV Export Card
                         item {
                             ElevatedCard(
@@ -2182,23 +2033,39 @@ fun AdminDashboardScreen(
                             .testTag("new_password_input")
                     )
 
-                    if (targetUser.passwordHash.isNotEmpty()) {
-                        Spacer(modifier = Modifier.height(10.dp))
-                        OutlinedButton(
-                            onClick = {
+                    val hasPassword = targetUser.passwordHash.isNotEmpty()
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedButton(
+                        onClick = {
+                            if (hasPassword) {
                                 viewModel.removeUserPassword(targetUser.id) {
                                     userForCredentialsEdit = null
                                 }
-                            },
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("remove_password_button")
-                        ) {
-                            Icon(Icons.Default.KeyOff, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(s.removePassword, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                        }
+                            } else {
+                                val pwdToSet = if (editPasswordInput.isNotBlank()) editPasswordInput.trim() else "123456"
+                                viewModel.resetLeaderPassword(targetUser.id, pwdToSet) {
+                                    userForCredentialsEdit = null
+                                }
+                            }
+                        },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (hasPassword) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("toggle_password_button")
+                    ) {
+                        Icon(
+                            if (hasPassword) Icons.Default.KeyOff else Icons.Default.VpnKey,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            if (hasPassword) s.removePassword else s.setPassword,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             },

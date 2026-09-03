@@ -675,7 +675,7 @@ object UyghurStrings : LocalizedStrings {
 
     // Password Management & Removal (مەخپىي نومۇرنى چىقىرىۋېتىش / كىرگۈزۈش)
     override val removePassword = "مەخپىي نومۇرنى چىقىرىۋېتىش"
-    override val setPassword = "مەخپىي نومۇر بەلگىلەش"
+    override val setPassword = "مەخپىي نومۇر ئورنىتىش"
     override val noPasswordSet = "مەخپىي نومۇرسىز (ئوچۇق كىرىش)"
     override val passwordRemovedSuccess = "مەخپىي نومۇر مۇۋەپپەقىيەتلىك چىقىرىۋېتىلدى"
     override val loginWithoutPassword = "مەخپىي نومۇرسىز بىۋاسىتە كىرىش"
