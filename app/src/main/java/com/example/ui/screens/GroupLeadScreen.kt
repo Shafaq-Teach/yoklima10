@@ -61,6 +61,7 @@ import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -574,6 +575,7 @@ fun GroupLeadScreen(
                         // Duty Sanjaq Selection & Configuration Card (نۆۋەتچى سانجاقلارنى كۆرسىتىش ۋە بېكىتىش - بىر ياكى بىر قانچىنى تاللاش)
                         if (group != null) {
                             item(key = "duty_sanjaq_card") {
+                                val context = LocalContext.current
                                 val currentDutySgs = viewModel.parseDutySubGroups(group.dutySubGroupCustomName, group.dutySubGroup)
                                 val isDutyLocked = viewModel.isDutySubGroupLocked(group.id)
                                 val dutySgName = if (group.dutySubGroupCustomName.isNotBlank()) group.dutySubGroupCustomName
