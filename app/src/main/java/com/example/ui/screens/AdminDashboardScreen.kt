@@ -2056,7 +2056,7 @@ fun AdminDashboardScreen(
                             .testTag("toggle_password_button")
                     ) {
                         Icon(
-                            if (hasPassword) Icons.Default.KeyOff else Icons.Default.VpnKey,
+                            Icons.Default.LockReset,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

@@ -401,8 +401,8 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             
             // Mark as read and notified on the sender's own device so NO popup appears here
             try {
-                com.example.util.LocalReadNoticeTracker.markAsRead(getApplication(), newUpdate.id)
-                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), newUpdate.id)
+                com.example.util.LocalReadNoticeTracker.markNoticeAsRead(getApplication<android.app.Application>(), newUpdate.id)
+                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication<android.app.Application>(), newUpdate.id)
             } catch (e: Exception) {
                 // ignore
             }
@@ -1262,8 +1262,8 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             )
             // Mark as read and notified on the sender device so NO popup appears here
             try {
-                com.example.util.LocalReadNoticeTracker.markAsRead(getApplication(), entity.id)
-                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), entity.id)
+                com.example.util.LocalReadNoticeTracker.markNoticeAsRead(getApplication<android.app.Application>(), entity.id)
+                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication<android.app.Application>(), entity.id)
             } catch (e: Exception) {
                 // ignore
             }
@@ -1323,8 +1323,8 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             )
             // Mark as read and notified on the sender device so NO popup appears here
             try {
-                com.example.util.LocalReadNoticeTracker.markAsRead(getApplication(), entity.id)
-                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), entity.id)
+                com.example.util.LocalReadNoticeTracker.markNoticeAsRead(getApplication<android.app.Application>(), entity.id)
+                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication<android.app.Application>(), entity.id)
             } catch (e: Exception) {
                 // ignore
             }

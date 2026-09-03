@@ -1,4 +1,4 @@
-﻿package com.example.util
+package com.example.util
 
 import android.content.Context
 import com.example.data.model.DailyUpdateEntity
@@ -24,6 +24,10 @@ object LocalReadNoticeTracker {
         if (unread <= 0) {
             AppNotificationManager.clearAllBadgeNotifications(context)
         }
+    }
+
+    fun markAsRead(context: Context, noticeId: Long) {
+        markNoticeAsRead(context, noticeId)
     }
 
     fun markAllNoticesAsRead(context: Context, noticeIds: List<Long>) {

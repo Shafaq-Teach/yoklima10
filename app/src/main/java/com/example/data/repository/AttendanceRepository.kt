@@ -9,6 +9,7 @@ import com.example.data.model.MemberEntity
 import com.example.data.model.MemberStatus
 import com.example.data.model.UserEntity
 import com.example.data.model.UserRole
+import com.example.data.supabase.SupabaseSyncService
 import kotlinx.coroutines.flow.Flow
 
 class AttendanceRepository(private val dao: AttendanceDao) {
