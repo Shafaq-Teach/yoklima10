@@ -19,6 +19,11 @@ object AppNotificationManager {
     fun initNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                .build()
+
             val channel = NotificationChannel(
                 CHANNEL_ID_HIGH_PRIORITY,
                 CHANNEL_NAME,
@@ -26,11 +31,13 @@ object AppNotificationManager {
             ).apply {
                 description = CHANNEL_DESC
                 enableLights(true)
-                lightColor = Color.CYAN
+                lightColor = Color.RED
                 enableVibration(true)
-                vibrationPattern = longArrayOf(0, 350, 200, 350, 200, 400)
-                setSound(soundUri, null)
+                vibrationPattern = longArrayOf(0, 450, 200, 450, 200, 450)
+                setSound(soundUri, audioAttributes)
                 setShowBadge(true)
+                lockscreenVisibility = NotificationCompat.VISIBILITY_PUBLIC
+                setBypassDnd(true)
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
             notificationManager?.createNotificationChannel(channel)
@@ -49,7 +56,7 @@ object AppNotificationManager {
         initNotificationChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             context,
@@ -60,8 +67,19 @@ object AppNotificationManager {
 
         val displayHeader = if (groupTargetName.isNotBlank()) "[$groupTargetName] $title" else title
         val subText = if (author.isNotBlank()) "يوللىغۇچى: $author" else "يېڭى مۇھىم ئۇچۇر"
-
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+        // Public fallback version for locked / secure screens
+        val publicNotification = NotificationCompat.Builder(context, CHANNEL_ID_HIGH_PRIORITY)
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setContentTitle("📢 يېڭى جىددىي ئۇقتۇرۇش!")
+            .setContentText(if (groupTargetName.isNotBlank()) "[$groupTargetName] يېڭى مۇھىم ئۇچۇر كەلدى" else "يېڭى مۇھىم ئۇقتۇرۇش بار")
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID_HIGH_PRIORITY)
             .setSmallIcon(android.R.drawable.ic_popup_reminder)
@@ -70,16 +88,19 @@ object AppNotificationManager {
             .setSubText(subText)
             .setStyle(NotificationCompat.BigTextStyle().bigText("$message\n\n$subText"))
             .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setFullScreenIntent(pendingIntent, true) // Triggers heads-up pop-up banner on screen!
             .setSound(soundUri)
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setVibrate(longArrayOf(0, 350, 200, 350, 200, 400))
-            .setLights(Color.CYAN, 1000, 500)
+            .setVibrate(longArrayOf(0, 450, 200, 450, 200, 450))
+            .setLights(Color.RED, 1000, 500)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setBadgeIconType(NotificationCompat.BADGE_ICON_SMALL)
             .setNumber(unreadCount)
+            .setTicker("📢 $displayHeader: $message")
+            .setPublicVersion(publicNotification)
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
         notificationManager?.notify(notificationId, builder.build())

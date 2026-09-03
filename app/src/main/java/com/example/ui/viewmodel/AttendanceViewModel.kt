@@ -879,11 +879,27 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         appPrefs.edit().putString("current_language", lang.name).apply()
     }
 
+    private fun saveLoggedInUserSession(user: UserEntity?) {
+        val prefs = getApplication<android.app.Application>().getSharedPreferences("user_session_prefs", Context.MODE_PRIVATE)
+        prefs.edit().apply {
+            if (user != null) {
+                putString("role", user.role.name)
+                putLong("groupId", user.groupId ?: 0L)
+                putString("displayName", user.displayName)
+            } else {
+                remove("role")
+                remove("groupId")
+                remove("displayName")
+            }
+        }.apply()
+    }
+
     fun login(username: String, passwordAttempt: String, onResult: (Boolean) -> Unit) {
         viewModelScope.launch {
             val user = repository.authenticate(username, passwordAttempt)
             if (user != null) {
                 _currentUser.value = user
+                saveLoggedInUserSession(user)
                 if (user.role == UserRole.GROUP_LEAD && user.groupId != null) {
                     _selectedGroupId.value = user.groupId
                 }
@@ -897,6 +913,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
 
     fun quickLogin(user: UserEntity) {
         _currentUser.value = user
+        saveLoggedInUserSession(user)
         if (user.role == UserRole.GROUP_LEAD && user.groupId != null) {
             _selectedGroupId.value = user.groupId
         }
@@ -911,6 +928,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
         _lastActiveOrbId.value = previousOrb
         _currentUser.value = null
+        saveLoggedInUserSession(null)
     }
 
     fun clearLastActiveOrb() {
