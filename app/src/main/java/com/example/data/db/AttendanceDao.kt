@@ -135,6 +135,15 @@ interface AttendanceDao {
     @Query("SELECT * FROM attendance_records WHERE memberId = :memberId ORDER BY date DESC")
     fun getAttendanceForMember(memberId: Long): Flow<List<AttendanceRecordEntity>>
 
+    @Query("SELECT * FROM attendance_records WHERE memberId = :memberId AND date = :date LIMIT 1")
+    suspend fun getAttendanceByMemberAndDate(memberId: Long, date: String): AttendanceRecordEntity?
+
+    @Query("SELECT * FROM attendance_records WHERE groupId = :groupId AND date = :date")
+    suspend fun getAttendanceByGroupAndDateList(groupId: Long, date: String): List<AttendanceRecordEntity>
+
+    @Query("SELECT * FROM attendance_records")
+    suspend fun getAllAttendanceList(): List<AttendanceRecordEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateAttendance(record: AttendanceRecordEntity)
 

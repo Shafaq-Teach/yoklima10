@@ -87,6 +87,10 @@ fun SanjaqManagementCard(
     val selectedDate by viewModel.selectedDate.collectAsState()
     val selectedSanjaqNumbers by viewModel.selectedSanjaqNumbers.collectAsState()
 
+    androidx.compose.runtime.LaunchedEffect(group.id) {
+        viewModel.loadSelectedSanjaqsForGroup(group.id)
+    }
+
     // Ensure we have at least 4 sanjaqs (1..4)
     val groupSanjaqs = allSanjaqs.filter { it.groupId == group.id }.sortedBy { it.sanjaqNumber }
     val displaySanjaqs = if (groupSanjaqs.isEmpty()) {

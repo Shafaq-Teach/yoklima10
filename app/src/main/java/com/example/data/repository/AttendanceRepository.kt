@@ -107,15 +107,25 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         status: AttendanceStatus,
         note: String = ""
     ): AttendanceRecordEntity {
+        val existing = dao.getAttendanceByMemberAndDate(memberId, date)
+        val now = System.currentTimeMillis()
+        val recordId = if (existing != null && existing.id > 0L) existing.id else (now * 1000L + (memberId % 1000L))
+        val firstTimestamp = if (existing != null && existing.timestamp > 0L) existing.timestamp else now
         val record = AttendanceRecordEntity(
+            id = recordId,
             memberId = memberId,
             groupId = groupId,
             date = date,
             status = status,
             note = note,
-            timestamp = System.currentTimeMillis()
+            timestamp = firstTimestamp
         )
         dao.insertOrUpdateAttendance(record)
+        try {
+            com.example.data.supabase.SupabaseSyncService.upsertAttendanceRecord(record)
+        } catch (e: Exception) {
+            // ignore
+        }
         return record
     }
 
@@ -124,17 +134,28 @@ class AttendanceRepository(private val dao: AttendanceDao) {
     }
 
     suspend fun markAllPresent(groupId: Long, date: String, members: List<MemberEntity>): List<AttendanceRecordEntity> {
+        val now = System.currentTimeMillis()
+        val existingMap = dao.getAttendanceByGroupAndDateList(groupId, date).associateBy { it.memberId }
         val records = members.filter { it.status == MemberStatus.ACTIVE }.map { member ->
+            val existing = existingMap[member.id]
+            val recordId = if (existing != null && existing.id > 0L) existing.id else (now * 1000L + (member.id % 1000L))
+            val firstTimestamp = if (existing != null && existing.timestamp > 0L) existing.timestamp else now
             AttendanceRecordEntity(
+                id = recordId,
                 memberId = member.id,
                 groupId = groupId,
                 date = date,
                 status = AttendanceStatus.PRESENT,
-                note = "",
-                timestamp = System.currentTimeMillis()
+                note = existing?.note.orEmpty(),
+                timestamp = firstTimestamp
             )
         }
         dao.insertAttendanceBatch(records)
+        try {
+            com.example.data.supabase.SupabaseSyncService.upsertAttendanceBatch(records)
+        } catch (e: Exception) {
+            // ignore
+        }
         return records
     }
 
@@ -555,7 +576,18 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         if (data.groups.isNotEmpty()) dao.insertGroups(data.groups)
         if (data.users.isNotEmpty()) dao.insertUsers(data.users)
         if (data.members.isNotEmpty()) dao.insertMembers(data.members)
-        if (data.attendance.isNotEmpty()) dao.insertAttendanceBatch(data.attendance)
+        if (data.attendance.isNotEmpty()) {
+            val localList = dao.getAllAttendanceList()
+            val localMap = localList.associateBy { "${it.memberId}_${it.date}" }
+            val toUpsert = data.attendance.filter { remote ->
+                val local = localMap["${remote.memberId}_${remote.date}"]
+                if (local == null) true
+                else remote.timestamp >= local.timestamp
+            }
+            if (toUpsert.isNotEmpty()) {
+                dao.insertAttendanceBatch(toUpsert)
+            }
+        }
         if (data.equipment.isNotEmpty()) dao.insertEquipmentBatch(data.equipment)
         if (data.updates.isNotEmpty()) dao.insertDailyUpdatesBatch(data.updates)
         if (data.contacts.isNotEmpty()) dao.insertExecutiveContactsBatch(data.contacts)

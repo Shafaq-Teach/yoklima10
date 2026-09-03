@@ -240,6 +240,22 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     private val _selectedSanjaqNumbers = MutableStateFlow<Set<Int>>(setOf(1, 2, 3, 4))
     val selectedSanjaqNumbers: StateFlow<Set<Int>> = _selectedSanjaqNumbers.asStateFlow()
 
+    fun loadSelectedSanjaqsForGroup(groupId: Long) {
+        val key = "selected_sanjaqs_group_$groupId"
+        val saved = appPrefs.getStringSet(key, null)
+        if (saved != null && saved.isNotEmpty()) {
+            _selectedSanjaqNumbers.value = saved.mapNotNull { it.toIntOrNull() }.toSet().ifEmpty { setOf(1, 2, 3, 4) }
+        } else {
+            _selectedSanjaqNumbers.value = setOf(1, 2, 3, 4)
+        }
+    }
+
+    private fun persistSelectedSanjaqs(sanjaqs: Set<Int>) {
+        val groupId = _currentUser.value?.groupId ?: _selectedGroupId.value
+        val key = "selected_sanjaqs_group_$groupId"
+        appPrefs.edit().putStringSet(key, sanjaqs.map { it.toString() }.toSet()).apply()
+    }
+
     fun toggleSanjaqSelection(sanjaqNum: Int) {
         val current = _selectedSanjaqNumbers.value.toMutableSet()
         if (current.contains(sanjaqNum)) {
@@ -250,10 +266,12 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             current.add(sanjaqNum)
         }
         _selectedSanjaqNumbers.value = current
+        persistSelectedSanjaqs(current)
     }
 
     fun selectAllSanjaqs(sanjaqNums: Set<Int>) {
         _selectedSanjaqNumbers.value = sanjaqNums
+        persistSelectedSanjaqs(sanjaqNums)
     }
 
     // Device Management & Remote Termination
@@ -482,19 +500,43 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         return listOf(single)
     }
 
+    fun isDutySubGroupLocked(groupId: Long): Boolean {
+        val user = _currentUser.value
+        if (user?.role == UserRole.ADMIN) return false
+        val todayDate = _selectedDate.value
+        val key = "duty_first_set_${groupId}_${todayDate}"
+        val firstSetTime = appPrefs.getLong(key, 0L)
+        if (firstSetTime == 0L) return false
+        val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
+        return (System.currentTimeMillis() - firstSetTime) > twentyFourHoursMillis
+    }
+
     fun setGroupDutySubGroups(groupId: Long, dutySubGroups: List<Int>, notes: String = "", customName: String = "") {
+        val user = _currentUser.value
+        if (user?.role != UserRole.ADMIN && isDutySubGroupLocked(groupId)) {
+            Toast.makeText(getApplication(), "نۆۋەتچى سانجاقلار بېكىتىلگىنىگە 24 سائەت توشتى، ئۆزگەرتىش پەقەت باشقۇرغۇچىغا ئوچۇق", Toast.LENGTH_LONG).show()
+            return
+        }
         viewModelScope.launch {
-            val grp = groups.value.find { it.id == groupId }
-            if (grp != null) {
-                val sgs = if (dutySubGroups.isEmpty()) listOf(1) else dutySubGroups.sorted()
-                val finalCustomName = if (customName.isNotBlank()) customName else sgs.joinToString("، ") { "$it-سانجاق" }
-                val updated = grp.copy(
-                    dutySubGroup = sgs.first(),
-                    dutyNotes = notes,
-                    dutySubGroupCustomName = finalCustomName
-                )
-                repository.updateGroup(updated)
-                Toast.makeText(getApplication(), "${strings.dutySubGroupTitle}: $finalCustomName (${strings.savedSuccessfully})", Toast.LENGTH_SHORT).show()
+            try {
+                val grp = groups.value.find { it.id == groupId }
+                if (grp != null) {
+                    val sgs = if (dutySubGroups.isEmpty()) listOf(1) else dutySubGroups.sorted()
+                    val finalCustomName = if (customName.isNotBlank()) customName else sgs.joinToString("، ") { "$it-سانجاق" }
+                    val updated = grp.copy(
+                        dutySubGroup = sgs.first(),
+                        dutyNotes = notes,
+                        dutySubGroupCustomName = finalCustomName
+                    )
+                    repository.updateGroup(updated)
+                    val todayDate = _selectedDate.value
+                    val key = "duty_first_set_${groupId}_${todayDate}"
+                    if (appPrefs.getLong(key, 0L) == 0L) {
+                        appPrefs.edit().putLong(key, System.currentTimeMillis()).apply()
+                    }
+                }
+            } catch (e: Exception) {
+                Toast.makeText(getApplication(), "نۆۋەتچى سانجاقلارنى ساقلاش مەغلۇپ بولدى: ${e.localizedMessage ?: "خاتالىق"}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -932,8 +974,12 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     fun isRecordLocked(record: AttendanceRecordEntity?): Boolean {
         val user = _currentUser.value
         if (user?.role == UserRole.ADMIN) return false
+        val twentyFourHoursMillis = 24 * 60 * 60 * 1000L
+        val now = System.currentTimeMillis()
+        if (record != null && record.timestamp > 0L) {
+            return (now - record.timestamp) > twentyFourHoursMillis
+        }
         val todayDate = dateFormat.format(Date())
-        // 1- 12 سائەتتىن ئىشىپ كەتسە ئادەتتىكى باشقۇرغۇچىلا ئۆزگەرتەلمىسۇن دىگەن يەرنى بىر كۇنلۇك چىسلا ئالمىشىپ ئەتىگە تەۋە بوپكەتسە باش باشقۇرغۇچىدىن باشقا ئادەتتىكى باشقۇرغۇچى ئۆزگەرتەلمەيدىغا بولسۇن
         if (_selectedDate.value < todayDate) return true
         if (record != null && record.date < todayDate) return true
         return false
@@ -971,21 +1017,20 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     fun setAttendanceStatus(memberId: Long, groupId: Long, status: AttendanceStatus, note: String = "") {
         val existingRecord = currentAttendanceMap.value[memberId]
         if (isRecordLocked(existingRecord)) {
-            Toast.makeText(getApplication(), strings.editLockedPastDate, Toast.LENGTH_LONG).show()
+            Toast.makeText(getApplication(), "تۇنجى قېتىم ئۆزگەرتىلگىنىگە 24 سائەت توشقانلىقتىن، پەقەت باش باشقۇرغۇچىلا ئۆزگەرتەلەيدۇ", Toast.LENGTH_LONG).show()
             return
         }
         viewModelScope.launch {
-            val record = repository.saveAttendanceRecord(
-                memberId = memberId,
-                groupId = groupId,
-                date = _selectedDate.value,
-                status = status,
-                note = note
-            )
-            Toast.makeText(getApplication(), strings.savedSuccess, Toast.LENGTH_SHORT).show()
-            // Auto-push to Supabase
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                SupabaseSyncService.upsertAttendanceRecord(record)
+            try {
+                repository.saveAttendanceRecord(
+                    memberId = memberId,
+                    groupId = groupId,
+                    date = _selectedDate.value,
+                    status = status,
+                    note = note
+                )
+            } catch (e: Exception) {
+                Toast.makeText(getApplication(), "يوقلىمىنى ساقلاش مەغلۇپ بولدى: ${e.localizedMessage ?: "خاتالىق"}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -993,15 +1038,18 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     fun unmarkAttendanceStatus(memberId: Long) {
         val existingRecord = currentAttendanceMap.value[memberId]
         if (isRecordLocked(existingRecord)) {
-            Toast.makeText(getApplication(), strings.editLockedPastDate, Toast.LENGTH_LONG).show()
+            Toast.makeText(getApplication(), "تۇنجى قېتىم ئۆزگەرتىلگىنىگە 24 سائەت توشقانلىقتىن، پەقەت باش باشقۇرغۇچىلا ئۆزگەرتەلەيدۇ", Toast.LENGTH_LONG).show()
             return
         }
         val date = _selectedDate.value
         viewModelScope.launch {
-            repository.deleteAttendanceRecord(memberId, date)
-            Toast.makeText(getApplication(), "يوقلىما قىلىنمىغان ھالەتكە ئەسلىگە قايتۇرۇلدى", Toast.LENGTH_SHORT).show()
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                SupabaseSyncService.deleteAttendanceRecord(memberId, date)
+            try {
+                repository.deleteAttendanceRecord(memberId, date)
+                viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    SupabaseSyncService.deleteAttendanceRecord(memberId, date)
+                }
+            } catch (e: Exception) {
+                Toast.makeText(getApplication(), "يوقلىمىنى ئۆچۈرۈش مەغلۇپ بولدى: ${e.localizedMessage ?: "خاتالىق"}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -1051,24 +1099,24 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
-    fun markAllPresent() {
+    fun markAllPresent(targetMembers: List<MemberEntity>? = null) {
         viewModelScope.launch {
             val targetGroupId = _currentUser.value?.groupId ?: _selectedGroupId.value
-            val members = currentGroupMembers.value
+            val members = targetMembers ?: currentGroupMembers.value
             val user = _currentUser.value
             // If non-admin and date is past, notify
             if (user?.role != UserRole.ADMIN && isDateLockedForNonAdmin(_selectedDate.value)) {
                 Toast.makeText(getApplication(), strings.editLockedPastDate, Toast.LENGTH_LONG).show()
                 return@launch
             }
-            val records = repository.markAllPresent(
-                groupId = targetGroupId,
-                date = _selectedDate.value,
-                members = members
-            )
-            Toast.makeText(getApplication(), strings.markAllPresentSuccess, Toast.LENGTH_SHORT).show()
-            viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                SupabaseSyncService.upsertAttendanceBatch(records)
+            try {
+                repository.markAllPresent(
+                    groupId = targetGroupId,
+                    date = _selectedDate.value,
+                    members = members
+                )
+            } catch (e: Exception) {
+                Toast.makeText(getApplication(), "ھەممىنى بار قىلىپ ساقلاش مەغلۇپ بولدى: ${e.localizedMessage ?: "خاتالىق"}", Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -2121,7 +2169,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
 
     fun pullAllFromSupabase(
         context: Context? = null,
-        silent: Boolean = false,
+        silent: Boolean = true,
         onComplete: (Boolean, String) -> Unit = { _, _ -> }
     ) {
         viewModelScope.launch {
@@ -2148,7 +2196,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 }
             }.onFailure { ex ->
                 val errorMsg = "Supabase تىن چۈشۈرۈش مەغلۇپ بولدى: ${ex.localizedMessage ?: "نامەلۇم خاتالىق"}"
-                if (context != null && !silent) {
+                if (context != null) {
                     Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                 }
                 onComplete(false, errorMsg)

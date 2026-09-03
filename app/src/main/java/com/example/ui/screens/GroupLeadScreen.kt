@@ -172,6 +172,7 @@ fun GroupLeadScreen(
     LaunchedEffect(user.groupId) {
         if (user.groupId != null) {
             viewModel.recordPortalActive(user.groupId)
+            viewModel.loadSelectedSanjaqsForGroup(user.groupId)
         }
     }
 
@@ -234,27 +235,16 @@ fun GroupLeadScreen(
                             val context = LocalContext.current
                             val isSyncing by viewModel.isSupabaseSyncing.collectAsState()
 
-                            // Cloud Sync Refresh Button
+                            // Cloud Sync Refresh Button (Silent background execution)
                             IconButton(
                                 onClick = { viewModel.pullAllFromSupabase(context) },
                                 modifier = Modifier.size(36.dp).testTag("lead_sync_btn")
                             ) {
-                                val spinTransition = rememberInfiniteTransition(label = "spin_lead")
-                                val rotation by spinTransition.animateFloat(
-                                    initialValue = 0f,
-                                    targetValue = 360f,
-                                    animationSpec = infiniteRepeatable(
-                                        animation = tween(1000, easing = LinearEasing)
-                                    ),
-                                    label = "rot"
-                                )
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
                                     contentDescription = "بۇلۇتتىن يېڭىلاش",
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .then(if (isSyncing) Modifier.rotate(rotation) else Modifier)
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
 
@@ -533,7 +523,7 @@ fun GroupLeadScreen(
 
                         // Locked date warning for non-admin
                         if (viewModel.isDateLockedForNonAdmin(selectedDate)) {
-                            item {
+                            item(key = "locked_date_warning") {
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
                                     color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
@@ -563,7 +553,7 @@ fun GroupLeadScreen(
 
                         // 3 Key Bayraq Personnel Directory & Attendance Card (مەسئۇل، ئەركان، ئىدارى)
                         if (group != null) {
-                            item {
+                            item(key = "bayraq_leaders_card") {
                                 BayraqLeadersCard(
                                     group = group,
                                     viewModel = viewModel,
@@ -572,7 +562,7 @@ fun GroupLeadScreen(
                             }
 
                             // 4 Sanjaqs Multi-Select & Dynamic Consolidated Calculation Card
-                            item {
+                            item(key = "sanjaq_mgmt_card") {
                                 SanjaqManagementCard(
                                     group = group,
                                     viewModel = viewModel,
@@ -583,8 +573,9 @@ fun GroupLeadScreen(
 
                         // Duty Sanjaq Selection & Configuration Card (نۆۋەتچى سانجاقلارنى كۆرسىتىش ۋە بېكىتىش - بىر ياكى بىر قانچىنى تاللاش)
                         if (group != null) {
-                            item {
+                            item(key = "duty_sanjaq_card") {
                                 val currentDutySgs = viewModel.parseDutySubGroups(group.dutySubGroupCustomName, group.dutySubGroup)
+                                val isDutyLocked = viewModel.isDutySubGroupLocked(group.id)
                                 val dutySgName = if (group.dutySubGroupCustomName.isNotBlank()) group.dutySubGroupCustomName
                                     else currentDutySgs.joinToString("، ") { sg ->
                                         currentGroupSanjaqs.find { it.sanjaqNumber == sg }?.sanjaqCustomName?.ifBlank { null } ?: "$sg-سانجاق"
@@ -619,6 +610,15 @@ fun GroupLeadScreen(
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                                 )
+                                                if (isDutyLocked) {
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Icon(
+                                                        imageVector = Icons.Default.Lock,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
                                             }
                                             Surface(
                                                 shape = RoundedCornerShape(8.dp),
@@ -637,10 +637,10 @@ fun GroupLeadScreen(
                                         Spacer(modifier = Modifier.height(8.dp))
 
                                         Text(
-                                            text = "نۆۋەتچى سانجاقلارنى تاللاڭ (بىر ياكى بىر قانچىنى بىرلا ۋاقىتتا تاللىغىلى بولىدۇ):",
+                                            text = if (isDutyLocked) "نۆۋەتچى سانجاقلار بېكىتىلگىنىگە 24 سائەت توشتى (پەقەت باشقۇرغۇچى ئۆزگەرتەلەيدۇ):" else "نۆۋەتچى سانجاقلارنى تاللاڭ (بىر ياكى بىر قانچىنى بىرلا ۋاقىتتا تاللىغىلى بولىدۇ):",
                                             style = MaterialTheme.typography.labelSmall,
                                             fontWeight = FontWeight.Medium,
-                                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
+                                            color = if (isDutyLocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f)
                                         )
 
                                         Spacer(modifier = Modifier.height(6.dp))
@@ -658,20 +658,28 @@ fun GroupLeadScreen(
                                                 FilterChip(
                                                     selected = isSelected,
                                                     onClick = {
-                                                        val newSelected = if (currentDutySgs.contains(sg)) {
-                                                            if (currentDutySgs.size > 1) currentDutySgs - sg else currentDutySgs
+                                                        if (isDutyLocked) {
+                                                            android.widget.Toast.makeText(
+                                                                context,
+                                                                "نۆۋەتچى سانجاقلار بېكىتىلگىنىگە 24 سائەت توشتى، ئۆزگەرتىش پەقەت باشقۇرغۇچىغا ئوچۇق",
+                                                                android.widget.Toast.LENGTH_LONG
+                                                            ).show()
                                                         } else {
-                                                            (currentDutySgs + sg).sorted()
+                                                            val newSelected = if (currentDutySgs.contains(sg)) {
+                                                                if (currentDutySgs.size > 1) currentDutySgs - sg else currentDutySgs
+                                                            } else {
+                                                                (currentDutySgs + sg).sorted()
+                                                            }
+                                                            val namesList = newSelected.joinToString("، ") { num ->
+                                                                currentGroupSanjaqs.find { it.sanjaqNumber == num }?.sanjaqCustomName?.ifBlank { null } ?: "$num-سانجاق"
+                                                            }
+                                                            viewModel.setGroupDutySubGroups(
+                                                                groupId = group.id,
+                                                                dutySubGroups = newSelected,
+                                                                notes = group.dutyNotes,
+                                                                customName = namesList
+                                                            )
                                                         }
-                                                        val namesList = newSelected.joinToString("، ") { num ->
-                                                            currentGroupSanjaqs.find { it.sanjaqNumber == num }?.sanjaqCustomName?.ifBlank { null } ?: "$num-سانجاق"
-                                                        }
-                                                        viewModel.setGroupDutySubGroups(
-                                                            groupId = group.id,
-                                                            dutySubGroups = newSelected,
-                                                            notes = group.dutyNotes,
-                                                            customName = namesList
-                                                        )
                                                     },
                                                     label = {
                                                         Text(
@@ -702,9 +710,9 @@ fun GroupLeadScreen(
                         }
 
                         // Mark All Present Button for active filtered sanjaqs
-                        item {
+                        item(key = "mark_all_present_btn") {
                             Button(
-                                onClick = { viewModel.markAllPresent() },
+                                onClick = { viewModel.markAllPresent(displayedMembers) },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
