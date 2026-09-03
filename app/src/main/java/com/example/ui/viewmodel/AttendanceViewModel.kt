@@ -399,20 +399,14 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             val grpName = if (groupId == 0L) "بارلىق بايراق ۋە قىسىملار" else (groups.value.find { it.id == groupId }?.name ?: "")
             val newUpdate = repository.addDailyUpdate(groupId, grpName, author, title, content, _selectedDate.value, priority)
             
-            // Deliver notification locally & trigger Android high priority status notification
+            // Mark as read and notified on the sender's own device so NO popup appears here
             try {
-                com.example.util.AppNotificationManager.showUrgentNotification(
-                    context = getApplication(),
-                    notificationId = newUpdate.id.toInt(),
-                    title = title,
-                    message = content,
-                    author = author,
-                    groupTargetName = grpName
-                )
+                com.example.util.LocalReadNoticeTracker.markAsRead(getApplication(), newUpdate.id)
+                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), newUpdate.id)
             } catch (e: Exception) {
                 // ignore
             }
-            Toast.makeText(getApplication(), "ئۇقتۇرۇش تارقىتىلدى ۋە بارلىق تېلېفونلارغا سىگنال ئەۋەتىلدى", Toast.LENGTH_SHORT).show()
+            Toast.makeText(getApplication(), "ئۇقتۇرۇش مۇۋەپپەقىيەتلىك يوللاندى ۋە بارلىق باشقا ئۈسكۈنىلەرگە يەتكۈزۈلدى", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1266,7 +1260,14 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 date = todayStr,
                 priority = "URGENT"
             )
-            Toast.makeText(getApplication(), strings.postUpdateSuccess, Toast.LENGTH_SHORT).show()
+            // Mark as read and notified on the sender device so NO popup appears here
+            try {
+                com.example.util.LocalReadNoticeTracker.markAsRead(getApplication(), entity.id)
+                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), entity.id)
+            } catch (e: Exception) {
+                // ignore
+            }
+            Toast.makeText(getApplication(), "جىددىي ئۇقتۇرۇش مۇۋەپپەقىيەتلىك تارقىتىلدى", Toast.LENGTH_SHORT).show()
             onSuccess()
             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                 SupabaseSyncService.upsertDailyUpdate(entity)
@@ -1320,6 +1321,13 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 date = todayStr,
                 priority = priority
             )
+            // Mark as read and notified on the sender device so NO popup appears here
+            try {
+                com.example.util.LocalReadNoticeTracker.markAsRead(getApplication(), entity.id)
+                com.example.util.LocalReadNoticeTracker.markAsNotified(getApplication(), entity.id)
+            } catch (e: Exception) {
+                // ignore
+            }
             Toast.makeText(getApplication(), strings.postUpdateSuccess, Toast.LENGTH_SHORT).show()
             onSuccess()
             viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
