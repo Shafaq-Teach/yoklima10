@@ -1,4 +1,4 @@
-﻿package com.example.util
+package com.example.util
 
 import android.app.job.JobParameters
 import android.app.job.JobService
@@ -46,8 +46,20 @@ class BackgroundSyncJobService : JobService() {
 
     private fun notifyUnreadAnnouncements(context: Context, updates: List<com.example.data.model.DailyUpdateEntity>) {
         if (updates.isEmpty()) return
-        val unreadCount = LocalReadNoticeTracker.getUnreadCount(context, updates)
-        updates.forEach { update ->
+        val prefs = context.getSharedPreferences("user_session_prefs", Context.MODE_PRIVATE)
+        val savedRole = prefs.getString("role", null)
+        val savedGroupId = prefs.getLong("groupId", 0L)
+
+        val relevantUpdates = updates.filter { update ->
+            when (savedRole) {
+                "ADMIN" -> true
+                "GROUP_LEAD" -> update.groupId == 0L || update.groupId == savedGroupId
+                else -> update.groupId == 0L || update.groupId == savedGroupId || savedGroupId == 0L
+            }
+        }
+
+        val unreadCount = LocalReadNoticeTracker.getUnreadCount(context, relevantUpdates)
+        relevantUpdates.forEach { update ->
             val isRead = LocalReadNoticeTracker.isNoticeRead(context, update.id)
             val alreadyNotified = LocalReadNoticeTracker.hasBeenNotified(context, update.id)
             if (!isRead && !alreadyNotified) {

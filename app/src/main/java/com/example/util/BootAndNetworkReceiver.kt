@@ -1,5 +1,7 @@
-﻿package com.example.util
+package com.example.util
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.app.job.JobInfo
 import android.app.job.JobScheduler
 import android.content.BroadcastReceiver
@@ -26,6 +28,7 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
         Log.d("BootAndNetworkReceiver", "Received broadcast: $action")
 
         schedulePeriodicJob(context)
+        scheduleSyncAlarm(context)
 
         if (isNetworkConnected(context)) {
             val pendingResult = goAsync()
@@ -68,8 +71,20 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
 
     private fun notifyUnread(context: Context, updates: List<com.example.data.model.DailyUpdateEntity>) {
         if (updates.isEmpty()) return
-        val unreadCount = LocalReadNoticeTracker.getUnreadCount(context, updates)
-        updates.forEach { update ->
+        val prefs = context.getSharedPreferences("user_session_prefs", Context.MODE_PRIVATE)
+        val savedRole = prefs.getString("role", null)
+        val savedGroupId = prefs.getLong("groupId", 0L)
+
+        val relevantUpdates = updates.filter { update ->
+            when (savedRole) {
+                "ADMIN" -> true
+                "GROUP_LEAD" -> update.groupId == 0L || update.groupId == savedGroupId
+                else -> update.groupId == 0L || update.groupId == savedGroupId || savedGroupId == 0L
+            }
+        }
+
+        val unreadCount = LocalReadNoticeTracker.getUnreadCount(context, relevantUpdates)
+        relevantUpdates.forEach { update ->
             val isRead = LocalReadNoticeTracker.isNoticeRead(context, update.id)
             val alreadyNotified = LocalReadNoticeTracker.hasBeenNotified(context, update.id)
             if (!isRead && !alreadyNotified) {
@@ -89,6 +104,7 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
 
     companion object {
         const val JOB_ID = 9922
+        const val ALARM_ACTION = "com.example.ACTION_SYNC_ALARM"
 
         fun schedulePeriodicJob(context: Context) {
             try {
@@ -103,6 +119,29 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
                 Log.d("BootAndNetworkReceiver", "Scheduled persistent background sync job ($JOB_ID)")
             } catch (e: Exception) {
                 Log.e("BootAndNetworkReceiver", "Failed to schedule background job", e)
+            }
+        }
+
+        fun scheduleSyncAlarm(context: Context) {
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+                val intent = Intent(context, BootAndNetworkReceiver::class.java).apply {
+                    action = ALARM_ACTION
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    9933,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+                )
+                val triggerAt = System.currentTimeMillis() + 60_000L // 1 minute
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                } else {
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
+                }
+            } catch (e: Exception) {
+                Log.w("BootAndNetworkReceiver", "Alarm schedule failed: ${e.message}")
             }
         }
     }

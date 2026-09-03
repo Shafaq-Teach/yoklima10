@@ -54,6 +54,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         com.example.util.AppNotificationManager.initNotificationChannel(this)
         com.example.util.BootAndNetworkReceiver.schedulePeriodicJob(this)
+        com.example.util.BootAndNetworkReceiver.scheduleSyncAlarm(this)
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1001)
+            }
+        }
         setContent {
             val viewModel: AttendanceViewModel = viewModel()
             val isDarkMode by viewModel.isDarkMode.collectAsState()
