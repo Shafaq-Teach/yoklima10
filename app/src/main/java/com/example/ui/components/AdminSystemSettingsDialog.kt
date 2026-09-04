@@ -225,6 +225,9 @@ fun AdminSystemSettingsDialog(
                                 )
                             }
                         }
+                    }
+                }
+
                 // Background Notification Reliability (ئارقا سەپ ئۇقتۇرۇش كاپالىتى)
                 item {
                     val context = androidx.compose.ui.platform.LocalContext.current
@@ -238,7 +241,7 @@ fun AdminSystemSettingsDialog(
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.NotificationsActive,
+                                    imageVector = Icons.Default.Notifications,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
