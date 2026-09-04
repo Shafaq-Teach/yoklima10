@@ -1,6 +1,7 @@
 package com.example
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -20,20 +21,26 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +54,9 @@ import com.example.ui.screens.GroupLeadScreen
 import com.example.ui.screens.LoginScreen
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AttendanceViewModel
+import com.example.util.DeviceOptimizationHelper
+import com.example.util.LiveSyncForegroundService
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +66,14 @@ class MainActivity : ComponentActivity() {
         com.example.util.BootAndNetworkReceiver.schedulePeriodicJob(this)
         com.example.util.BootAndNetworkReceiver.scheduleSyncAlarm(this)
         com.example.util.LiveSyncForegroundService.startService(this)
+
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+            nm?.cancel(LiveSyncForegroundService.NOTIFICATION_ID)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                nm?.deleteNotificationChannel(LiveSyncForegroundService.FOREGROUND_CHANNEL_ID)
+            }
+        } catch (e: Exception) {}
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
@@ -103,6 +121,60 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun AttendanceApp(viewModel: AttendanceViewModel = viewModel()) {
+    val context = LocalContext.current
+    val prefs = remember {
+        context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+    }
+    var showBatteryPrompt by remember {
+        val hasPrompted = prefs.getBoolean("has_prompted_battery_optimization", false)
+        val isIgnored = DeviceOptimizationHelper.isIgnoringBatteryOptimizations(context)
+        mutableStateOf(!hasPrompted && !isIgnored)
+    }
+
+    if (showBatteryPrompt) {
+        AlertDialog(
+            onDismissRequest = {
+                prefs.edit().putBoolean("has_prompted_battery_optimization", true).apply()
+                showBatteryPrompt = false
+            },
+            title = {
+                Text(
+                    text = "ئۇقتۇرۇش كاپالىتى",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "ئۇقتۇرۇشلارنى دەل ۋاقتىدا تاپشۇرۇۋېلىش ئۈچۈن باتارېيە چەكلىمىسىنى بىكار قىلىڭ (ئېچىڭ).\n\nشۇنداق قىلغاندا تېلېفون ئېكرانى تاقاق ياكى ئەپ يېپىق بولسىمۇ يېڭى ئۇقتۇرۇشلار دەل ۋاقتىدا كېلىدۇ.",
+                    fontSize = 14.sp,
+                    lineHeight = 22.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        prefs.edit().putBoolean("has_prompted_battery_optimization", true).apply()
+                        showBatteryPrompt = false
+                        DeviceOptimizationHelper.requestIgnoreBatteryOptimizations(context)
+                    }
+                ) {
+                    Text("ھەئە", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        prefs.edit().putBoolean("has_prompted_battery_optimization", true).apply()
+                        showBatteryPrompt = false
+                    }
+                ) {
+                    Text("ياق", fontWeight = FontWeight.Medium)
+                }
+            }
+        )
+    }
+
     val currentUser by viewModel.currentUser.collectAsState()
     val isBlocked by viewModel.isCurrentDeviceBlocked.collectAsState()
 

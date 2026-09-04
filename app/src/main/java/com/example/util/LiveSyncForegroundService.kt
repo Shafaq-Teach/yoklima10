@@ -1,19 +1,14 @@
 package com.example.util
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
-import androidx.core.app.NotificationCompat
-import com.example.MainActivity
 import com.example.data.db.AppDatabase
 import com.example.data.repository.AttendanceRepository
 import com.example.data.supabase.SupabaseSyncService
@@ -31,14 +26,25 @@ class LiveSyncForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "LiveSyncForegroundService onCreate (Elevated 24/7 Foreground Mode)")
-        startForegroundServiceNotification()
+        Log.d(TAG, "LiveSyncForegroundService onCreate (Silent background mode)")
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.cancel(NOTIFICATION_ID)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                nm?.deleteNotificationChannel(FOREGROUND_CHANNEL_ID)
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
         startSyncLoop()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "LiveSyncForegroundService onStartCommand")
-        startForegroundServiceNotification()
+        Log.d(TAG, "LiveSyncForegroundService onStartCommand (Silent background mode)")
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.cancel(NOTIFICATION_ID)
+        } catch (e: Exception) {}
         if (!isSyncRunning) {
             startSyncLoop()
         }
@@ -49,73 +55,14 @@ class LiveSyncForegroundService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.d(TAG, "LiveSyncForegroundService onDestroy, restarting...")
+        Log.d(TAG, "LiveSyncForegroundService onDestroy, restarting silently...")
         serviceScope.cancel()
         try {
             val restartIntent = Intent(applicationContext, LiveSyncForegroundService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                applicationContext.startForegroundService(restartIntent)
-            } else {
-                applicationContext.startService(restartIntent)
-            }
+            applicationContext.startService(restartIntent)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to auto-restart service", e)
+            Log.w(TAG, "Failed to auto-restart service", e)
         }
-    }
-
-    private fun startForegroundServiceNotification() {
-        try {
-            initServiceNotificationChannel()
-            val notification = createForegroundNotification()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
-                )
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to elevate to foreground service", e)
-        }
-    }
-
-    private fun initServiceNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                FOREGROUND_CHANNEL_ID,
-                "يوقلىما بۇلۇت ئۇلىنىشى",
-                NotificationManager.IMPORTANCE_LOW
-            ).apply {
-                description = "ئۇقتۇرۇشلارنى دەل ۋاقتىدا تەكشۈرۈش ئارقا سەپ مۇلازىمىتى"
-                setShowBadge(false)
-                enableLights(false)
-                enableVibration(false)
-            }
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            nm?.createNotificationChannel(channel)
-        }
-    }
-
-    private fun createForegroundNotification(): Notification {
-        val launchIntent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
-        )
-        return NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
-            .setContentTitle("يوقلىما سىستېمىسى كۆزىتىشتە")
-            .setContentText("يېڭى ئۇقتۇرۇشلار دەل ۋاقتىدا قوبۇل قىلىنىۋاتىدۇ")
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
-            .setContentIntent(pendingIntent)
-            .build()
     }
 
     private fun startSyncLoop() {
@@ -219,14 +166,10 @@ class LiveSyncForegroundService : Service() {
         fun startService(context: Context) {
             try {
                 val intent = Intent(context, LiveSyncForegroundService::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(intent)
-                } else {
-                    context.startService(intent)
-                }
-                Log.d(TAG, "LiveSyncForegroundService started with foreground elevation")
+                context.startService(intent)
+                Log.d(TAG, "LiveSyncForegroundService started silently")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to start LiveSyncForegroundService", e)
+                Log.w(TAG, "Failed to start LiveSyncForegroundService silently", e)
             }
         }
     }
