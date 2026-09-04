@@ -160,8 +160,8 @@ class LiveSyncForegroundService : Service() {
 
     companion object {
         private const val TAG = "LiveSyncForeground"
-        private const val NOTIFICATION_ID = 9911
-        private const val FOREGROUND_CHANNEL_ID = "yoqlima_background_sync_service"
+        const val NOTIFICATION_ID = 9911
+        const val FOREGROUND_CHANNEL_ID = "yoqlima_background_sync_service"
 
         fun startService(context: Context) {
             try {
