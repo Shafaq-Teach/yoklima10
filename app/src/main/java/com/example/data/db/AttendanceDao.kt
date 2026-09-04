@@ -104,6 +104,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM members ORDER BY id ASC")
     fun getAllMembers(): Flow<List<MemberEntity>>
 
+    @Query("SELECT * FROM members ORDER BY id ASC")
+    suspend fun getAllMembersList(): List<MemberEntity>
+
     @Query("SELECT * FROM members WHERE id = :id LIMIT 1")
     suspend fun getMemberById(id: Long): MemberEntity?
 
@@ -157,6 +160,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM equipment_records ORDER BY id ASC")
     fun getAllEquipment(): Flow<List<com.example.data.model.EquipmentEntity>>
 
+    @Query("SELECT * FROM equipment_records ORDER BY id ASC")
+    suspend fun getAllEquipmentList(): List<com.example.data.model.EquipmentEntity>
+
     @Query("SELECT * FROM equipment_records WHERE groupId = :groupId ORDER BY id ASC")
     fun getEquipmentByGroup(groupId: Long): Flow<List<com.example.data.model.EquipmentEntity>>
 
@@ -188,6 +194,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM daily_updates ORDER BY timestamp DESC")
     fun getAllDailyUpdates(): Flow<List<com.example.data.model.DailyUpdateEntity>>
 
+    @Query("SELECT * FROM daily_updates ORDER BY id ASC")
+    suspend fun getAllDailyUpdatesList(): List<com.example.data.model.DailyUpdateEntity>
+
     @Query("SELECT * FROM daily_updates WHERE groupId = 0 OR groupId = :groupId ORDER BY timestamp DESC")
     fun getDailyUpdatesForGroup(groupId: Long): Flow<List<com.example.data.model.DailyUpdateEntity>>
 
@@ -213,6 +222,9 @@ interface AttendanceDao {
     @Query("SELECT * FROM executive_contacts ORDER BY orderIndex ASC, id ASC")
     fun getAllExecutiveContacts(): Flow<List<com.example.data.model.ExecutiveContactEntity>>
 
+    @Query("SELECT * FROM executive_contacts ORDER BY orderIndex ASC, id ASC")
+    suspend fun getAllExecutiveContactsList(): List<com.example.data.model.ExecutiveContactEntity>
+
     @Query("SELECT COUNT(*) FROM executive_contacts")
     suspend fun getExecutiveContactsCount(): Int
 
@@ -237,6 +249,9 @@ interface AttendanceDao {
 
     @Query("SELECT * FROM notice_receipts")
     fun getAllNoticeReceipts(): Flow<List<com.example.data.model.NoticeReceiptEntity>>
+
+    @Query("SELECT * FROM notice_receipts")
+    suspend fun getAllNoticeReceiptsList(): List<com.example.data.model.NoticeReceiptEntity>
 
     @Query("SELECT * FROM notice_receipts WHERE noticeId = :noticeId AND groupId = :groupId LIMIT 1")
     suspend fun getReceipt(noticeId: Long, groupId: Long): com.example.data.model.NoticeReceiptEntity?
@@ -316,9 +331,11 @@ interface AttendanceDao {
     @Query("SELECT COUNT(*) FROM sanjaq_leaders")
     suspend fun getSanjaqLeadersCount(): Int
 
-    // --- Device Sessions & Termination Management ---
     @Query("SELECT * FROM device_sessions ORDER BY lastActiveTime DESC")
     fun getAllDeviceSessions(): Flow<List<com.example.data.model.DeviceSessionEntity>>
+
+    @Query("SELECT * FROM device_sessions ORDER BY lastActiveTime DESC")
+    suspend fun getAllDeviceSessionsList(): List<com.example.data.model.DeviceSessionEntity>
 
     @Query("SELECT * FROM device_sessions WHERE deviceId = :deviceId LIMIT 1")
     suspend fun getDeviceSession(deviceId: String): com.example.data.model.DeviceSessionEntity?

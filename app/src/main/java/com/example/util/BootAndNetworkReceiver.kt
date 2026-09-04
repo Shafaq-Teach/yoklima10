@@ -33,6 +33,10 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
 
         if (isNetworkConnected(context)) {
             val pendingResult = goAsync()
+            val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            @Suppress("DEPRECATION")
+            val wakeLock = powerManager?.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "Yoqlima:BootSyncWakeLock")
+            wakeLock?.acquire(15000L)
             scope.launch {
                 try {
                     val db = AppDatabase.getInstance(context.applicationContext)
@@ -50,6 +54,9 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
                 } catch (e: Exception) {
                     Log.e("BootAndNetworkReceiver", "Sync failed on broadcast", e)
                 } finally {
+                    try {
+                        if (wakeLock?.isHeld == true) wakeLock.release()
+                    } catch (e: Exception) {}
                     pendingResult.finish()
                 }
             }
@@ -70,6 +77,20 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
         }
     }
 
+    private fun wakeUpScreen(context: Context) {
+        try {
+            val pm = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager ?: return
+            @Suppress("DEPRECATION")
+            val screenWakeLock = pm.newWakeLock(
+                android.os.PowerManager.SCREEN_BRIGHT_WAKE_LOCK or android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP or android.os.PowerManager.ON_AFTER_RELEASE,
+                "Yoqlima:BootNoticeWakeLock"
+            )
+            screenWakeLock.acquire(8000L)
+        } catch (e: Exception) {
+            Log.w("BootAndNetworkReceiver", "WakeLock error: ${e.message}")
+        }
+    }
+
     private fun notifyUnread(context: Context, updates: List<com.example.data.model.DailyUpdateEntity>) {
         if (updates.isEmpty()) return
         val prefs = context.getSharedPreferences("user_session_prefs", Context.MODE_PRIVATE)
@@ -80,7 +101,7 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
             when (savedRole) {
                 "ADMIN" -> true
                 "GROUP_LEAD" -> update.groupId == 0L || update.groupId == savedGroupId
-                else -> update.groupId == 0L || update.groupId == savedGroupId || savedGroupId == 0L
+                else -> true
             }
         }
 
@@ -89,6 +110,7 @@ class BootAndNetworkReceiver : BroadcastReceiver() {
             val isRead = LocalReadNoticeTracker.isNoticeRead(context, update.id)
             val alreadyNotified = LocalReadNoticeTracker.hasBeenNotified(context, update.id)
             if (!isRead && !alreadyNotified) {
+                wakeUpScreen(context)
                 AppNotificationManager.showUrgentNotification(
                     context = context,
                     notificationId = update.id.toInt(),

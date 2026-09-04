@@ -236,7 +236,63 @@ fun GroupLeadSettingsDialog(
                     }
                 }
 
-                // 6. Device ID info
+                // 6. Background Notification Reliability (ئارقا سەپ ئۇقتۇرۇش كاپالىتى)
+                item {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    ElevatedCard(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.elevatedCardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "6. ئېكران تاقاقتا ئۇقتۇرۇش كاپالىتى",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "تېلېفون ياكى ئەپ تاقاق چاغدىمۇ ئۇچۇر كەلسە ئېكران يورۇپ خەۋەر قىلىشى ئۈچۈن، شياۋمى ۋە باشقا تېلېفونلاردا باتارېيە چەكلىمىسىنى بىكار قىلىش ۋە ئاپتوماتىك قوزغىلىشقا رۇخسەت بېرىش كېرەك.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = { com.example.util.DeviceOptimizationHelper.requestIgnoreBatteryOptimizations(context) },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("باتارېيە چەكلىمىسىنى ئېچىش", fontSize = 11.sp, maxLines = 1)
+                                }
+                                Button(
+                                    onClick = { com.example.util.DeviceOptimizationHelper.openAutoStartSettings(context) },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp)
+                                ) {
+                                    Text("ئاپتوماتىك قوزغىلىش", fontSize = 11.sp, maxLines = 1)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 7. Device ID info
                 item {
                     Surface(
                         shape = RoundedCornerShape(12.dp),

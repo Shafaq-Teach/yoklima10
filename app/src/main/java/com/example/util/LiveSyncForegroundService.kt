@@ -1,11 +1,19 @@
 package com.example.util
 
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.example.MainActivity
 import com.example.data.db.AppDatabase
 import com.example.data.repository.AttendanceRepository
 import com.example.data.supabase.SupabaseSyncService
@@ -23,12 +31,14 @@ class LiveSyncForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "LiveSyncForegroundService onCreate (Silent background mode)")
+        Log.d(TAG, "LiveSyncForegroundService onCreate (Elevated 24/7 Foreground Mode)")
+        startForegroundServiceNotification()
         startSyncLoop()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.d(TAG, "LiveSyncForegroundService onStartCommand (Silent background mode)")
+        Log.d(TAG, "LiveSyncForegroundService onStartCommand")
+        startForegroundServiceNotification()
         if (!isSyncRunning) {
             startSyncLoop()
         }
@@ -43,10 +53,69 @@ class LiveSyncForegroundService : Service() {
         serviceScope.cancel()
         try {
             val restartIntent = Intent(applicationContext, LiveSyncForegroundService::class.java)
-            applicationContext.startService(restartIntent)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                applicationContext.startForegroundService(restartIntent)
+            } else {
+                applicationContext.startService(restartIntent)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to auto-restart service", e)
         }
+    }
+
+    private fun startForegroundServiceNotification() {
+        try {
+            initServiceNotificationChannel()
+            val notification = createForegroundNotification()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to elevate to foreground service", e)
+        }
+    }
+
+    private fun initServiceNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                FOREGROUND_CHANNEL_ID,
+                "يوقلىما بۇلۇت ئۇلىنىشى",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "ئۇقتۇرۇشلارنى دەل ۋاقتىدا تەكشۈرۈش ئارقا سەپ مۇلازىمىتى"
+                setShowBadge(false)
+                enableLights(false)
+                enableVibration(false)
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            nm?.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createForegroundNotification(): Notification {
+        val launchIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            launchIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+        return NotificationCompat.Builder(this, FOREGROUND_CHANNEL_ID)
+            .setContentTitle("يوقلىما سىستېمىسى كۆزىتىشتە")
+            .setContentText("يېڭى ئۇقتۇرۇشلار دەل ۋاقتىدا قوبۇل قىلىنىۋاتىدۇ")
+            .setSmallIcon(android.R.drawable.ic_popup_reminder)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .setContentIntent(pendingIntent)
+            .build()
     }
 
     private fun startSyncLoop() {
@@ -96,7 +165,7 @@ class LiveSyncForegroundService : Service() {
             when (savedRole) {
                 "ADMIN" -> true
                 "GROUP_LEAD" -> update.groupId == 0L || update.groupId == savedGroupId
-                else -> update.groupId == 0L || update.groupId == savedGroupId || savedGroupId == 0L
+                else -> true
             }
         }
 
@@ -136,7 +205,7 @@ class LiveSyncForegroundService : Service() {
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP or PowerManager.ON_AFTER_RELEASE,
                 "Yoqlima:UrgentNoticeWakeLock"
             )
-            wakeLock.acquire(3000L) // Turn on screen for 3 seconds
+            wakeLock.acquire(8000L) // Turn on screen for 8 seconds
         } catch (e: Exception) {
             Log.w(TAG, "WakeLock acquire failed: ${e.message}")
         }
@@ -144,12 +213,18 @@ class LiveSyncForegroundService : Service() {
 
     companion object {
         private const val TAG = "LiveSyncForeground"
+        private const val NOTIFICATION_ID = 9911
+        private const val FOREGROUND_CHANNEL_ID = "yoqlima_background_sync_service"
 
         fun startService(context: Context) {
             try {
                 val intent = Intent(context, LiveSyncForegroundService::class.java)
-                context.startService(intent)
-                Log.d(TAG, "LiveSyncForegroundService started silently")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(intent)
+                } else {
+                    context.startService(intent)
+                }
+                Log.d(TAG, "LiveSyncForegroundService started with foreground elevation")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to start LiveSyncForegroundService", e)
             }

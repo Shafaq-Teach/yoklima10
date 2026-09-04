@@ -419,14 +419,16 @@ fun GroupLeadScreen(
                     } else 0f
 
                     val availableSanjaqNumbers = (members.map { it.subGroup } + listOf(1, 2, 3, 4) + currentGroupSanjaqs.map { it.sanjaqNumber }).distinct().filter { it > 0 }.sorted()
+                    val attendanceListState = androidx.compose.foundation.lazy.rememberLazyListState()
 
                     LazyColumn(
+                        state = attendanceListState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // Date Selector Strip
-                        item {
+                        item(key = "date_selector_strip") {
                             DateSelectorStrip(
                                 selectedDate = selectedDate,
                                 onDateSelected = { viewModel.setSelectedDate(it) },

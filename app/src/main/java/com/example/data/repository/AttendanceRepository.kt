@@ -573,26 +573,50 @@ class AttendanceRepository(private val dao: AttendanceDao) {
     }
 
     suspend fun restoreFromSupabaseData(data: com.example.data.supabase.SupabasePullData) {
-        if (data.groups.isNotEmpty()) dao.insertGroups(data.groups)
-        if (data.users.isNotEmpty()) dao.insertUsers(data.users)
-        if (data.members.isNotEmpty()) dao.insertMembers(data.members)
+        if (data.groups.isNotEmpty()) {
+            val local = dao.getAllGroupsList()
+            if (local != data.groups) dao.insertGroups(data.groups)
+        }
+        if (data.users.isNotEmpty()) {
+            val local = dao.getAllUsersList()
+            if (local != data.users) dao.insertUsers(data.users)
+        }
+        if (data.members.isNotEmpty()) {
+            val local = dao.getAllMembersList()
+            if (local != data.members) dao.insertMembers(data.members)
+        }
         if (data.attendance.isNotEmpty()) {
             val localList = dao.getAllAttendanceList()
             val localMap = localList.associateBy { "${it.memberId}_${it.date}" }
             val toUpsert = data.attendance.filter { remote ->
                 val local = localMap["${remote.memberId}_${remote.date}"]
                 if (local == null) true
-                else remote.timestamp >= local.timestamp
+                else remote.timestamp > local.timestamp || (remote.timestamp == local.timestamp && (remote.status != local.status || remote.note != local.note))
             }
             if (toUpsert.isNotEmpty()) {
                 dao.insertAttendanceBatch(toUpsert)
             }
         }
-        if (data.equipment.isNotEmpty()) dao.insertEquipmentBatch(data.equipment)
-        if (data.updates.isNotEmpty()) dao.insertDailyUpdatesBatch(data.updates)
-        if (data.contacts.isNotEmpty()) dao.insertExecutiveContactsBatch(data.contacts)
-        if (data.receipts.isNotEmpty()) dao.insertReceiptsBatch(data.receipts)
-        if (data.deviceSessions.isNotEmpty()) dao.insertDeviceSessionsBatch(data.deviceSessions)
+        if (data.equipment.isNotEmpty()) {
+            val local = dao.getAllEquipmentList()
+            if (local != data.equipment) dao.insertEquipmentBatch(data.equipment)
+        }
+        if (data.updates.isNotEmpty()) {
+            val local = dao.getAllDailyUpdatesList()
+            if (local != data.updates) dao.insertDailyUpdatesBatch(data.updates)
+        }
+        if (data.contacts.isNotEmpty()) {
+            val local = dao.getAllExecutiveContactsList()
+            if (local != data.contacts) dao.insertExecutiveContactsBatch(data.contacts)
+        }
+        if (data.receipts.isNotEmpty()) {
+            val local = dao.getAllNoticeReceiptsList()
+            if (local != data.receipts) dao.insertReceiptsBatch(data.receipts)
+        }
+        if (data.deviceSessions.isNotEmpty()) {
+            val local = dao.getAllDeviceSessionsList()
+            if (local != data.deviceSessions) dao.insertDeviceSessionsBatch(data.deviceSessions)
+        }
     }
 
     suspend fun resetDatabase() {
