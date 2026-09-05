@@ -518,7 +518,15 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         osVersion: String,
         userName: String
     ) {
-        val existing = dao.getDeviceSession(deviceId)
+        val allLocal = dao.getAllDeviceSessionsList()
+        // Match existing by deviceId, or by physical device signature (deviceName + osVersion + userName)
+        val existing = allLocal.find { it.deviceId == deviceId }
+            ?: allLocal.find {
+                it.deviceName.trim().equals(deviceName.trim(), ignoreCase = true) &&
+                it.osVersion.trim().equals(osVersion.trim(), ignoreCase = true) &&
+                it.lastLoginUser.trim().equals(userName.trim(), ignoreCase = true)
+            }
+
         val now = System.currentTimeMillis()
         val session = if (existing == null) {
             com.example.data.model.DeviceSessionEntity(
@@ -532,12 +540,24 @@ class AttendanceRepository(private val dao: AttendanceDao) {
             )
         } else {
             existing.copy(
+                deviceId = deviceId, // ensure latest deviceId is used
                 deviceName = deviceName,
                 osVersion = osVersion,
                 lastLoginUser = userName,
                 lastActiveTime = now
             )
         }
+
+        // Clean up any other duplicate rows with different deviceIds for this physical device
+        allLocal.filter {
+            it.deviceId != deviceId &&
+            it.deviceName.trim().equals(deviceName.trim(), ignoreCase = true) &&
+            it.osVersion.trim().equals(osVersion.trim(), ignoreCase = true) &&
+            it.lastLoginUser.trim().equals(userName.trim(), ignoreCase = true)
+        }.forEach {
+            dao.deleteDeviceSession(it.deviceId)
+        }
+
         dao.insertOrUpdateDeviceSession(session)
         try {
             com.example.data.supabase.SupabaseSyncService.pushDeviceSessions(listOf(session))
@@ -615,7 +635,16 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         }
         if (data.deviceSessions.isNotEmpty()) {
             val local = dao.getAllDeviceSessionsList()
-            if (local != data.deviceSessions) dao.insertDeviceSessionsBatch(data.deviceSessions)
+            val deduped = data.deviceSessions.associateBy {
+                "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}_${it.lastLoginUser.trim()}".ifBlank { it.deviceId }
+            }.values.toList()
+            if (local != deduped) {
+                dao.insertDeviceSessionsBatch(deduped)
+                val activeIds = deduped.map { it.deviceId }.toSet()
+                local.filter { it.deviceId !in activeIds }.forEach {
+                    dao.deleteDeviceSession(it.deviceId)
+                }
+            }
         }
     }
 

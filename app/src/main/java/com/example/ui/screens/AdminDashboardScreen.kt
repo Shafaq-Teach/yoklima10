@@ -248,19 +248,26 @@ fun AdminDashboardScreen(
                             Spacer(modifier = Modifier.width(4.dp))
 
                             val allSessions by viewModel.allDeviceSessions.collectAsState()
+                            val now = System.currentTimeMillis()
+                            val uniqueActiveCount = remember(allSessions, now) {
+                                val active = allSessions.filter { (now - it.lastActiveTime) <= 24 * 60 * 60 * 1000L }
+                                active.map {
+                                    "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}_${it.lastLoginUser.trim()}".ifBlank { it.deviceId }
+                                }.distinct().size
+                            }
                             IconButton(
                                 onClick = { showAdminSystemSettingsDialog = true },
                                 modifier = Modifier.size(38.dp).testTag("admin_system_settings_button")
                             ) {
                                 BadgedBox(
                                     badge = {
-                                        if (allSessions.isNotEmpty()) {
+                                        if (uniqueActiveCount > 0) {
                                             Badge(
                                                 containerColor = MaterialTheme.colorScheme.primary,
                                                 contentColor = MaterialTheme.colorScheme.onPrimary
                                             ) {
                                                 Text(
-                                                    text = "${allSessions.size}",
+                                                    text = "$uniqueActiveCount",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )

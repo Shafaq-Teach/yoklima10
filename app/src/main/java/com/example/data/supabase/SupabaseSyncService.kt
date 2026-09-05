@@ -758,7 +758,23 @@ object SupabaseSyncService {
             Log.w(TAG, "Pull from device_sessions_store failed: ${e.message}")
         }
 
-        resultList
+        // Deduplicate so multiple opens of the same physical phone are merged into ONE
+        val dedupedMap = linkedMapOf<String, DeviceSessionEntity>()
+        resultList.sortedBy { it.lastActiveTime }.forEach { d ->
+            val key = "${d.deviceName.trim().lowercase()}_${d.osVersion.trim().lowercase()}_${d.lastLoginUser.trim()}".ifBlank { d.deviceId }
+            val prev = dedupedMap[key]
+            if (prev == null) {
+                dedupedMap[key] = d
+            } else {
+                dedupedMap[key] = d.copy(
+                    isBlocked = prev.isBlocked || d.isBlocked,
+                    blockedReason = if (d.isBlocked) d.blockedReason else prev.blockedReason,
+                    firstSeenTime = minOf(prev.firstSeenTime, d.firstSeenTime),
+                    lastActiveTime = maxOf(prev.lastActiveTime, d.lastActiveTime)
+                )
+            }
+        }
+        dedupedMap.values.toList()
     }
 
     suspend fun pushDeviceSessions(sessions: List<DeviceSessionEntity>): SupabaseSyncResult = withContext(Dispatchers.IO) {
@@ -767,16 +783,31 @@ object SupabaseSyncService {
 
         try {
             // First pull existing devices from store to merge them
-            val existing = pullDeviceSessions().associateBy { it.deviceId }.toMutableMap()
-            // Merge current sessions
-            sessions.forEach { s ->
-                existing[s.deviceId] = s
-            }
+            val existing = pullDeviceSessions()
+            val allList = existing + sessions
 
-            // Prune sessions older than 2 minutes so exited devices are removed
+            // Retain active devices for 24 hours so active phones are not lost
             val now = System.currentTimeMillis()
-            val activeThresholdMs = 2 * 60 * 1000L
-            val pruned = existing.values.filter { (now - it.lastActiveTime) <= activeThresholdMs }
+            val activeThresholdMs = 24 * 60 * 60 * 1000L
+            val validList = allList.filter { (now - it.lastActiveTime) <= activeThresholdMs }
+
+            // Deduplicate: same physical phone opened multiple times counts as ONE phone
+            val dedupedMap = linkedMapOf<String, DeviceSessionEntity>()
+            validList.sortedBy { it.lastActiveTime }.forEach { d ->
+                val key = "${d.deviceName.trim().lowercase()}_${d.osVersion.trim().lowercase()}_${d.lastLoginUser.trim()}".ifBlank { d.deviceId }
+                val prev = dedupedMap[key]
+                if (prev == null) {
+                    dedupedMap[key] = d
+                } else {
+                    dedupedMap[key] = d.copy(
+                        isBlocked = prev.isBlocked || d.isBlocked,
+                        blockedReason = if (d.isBlocked) d.blockedReason else prev.blockedReason,
+                        firstSeenTime = minOf(prev.firstSeenTime, d.firstSeenTime),
+                        lastActiveTime = maxOf(prev.lastActiveTime, d.lastActiveTime)
+                    )
+                }
+            }
+            val pruned = dedupedMap.values.toList()
 
             val devJson = JSONArray()
             pruned.forEach { d ->

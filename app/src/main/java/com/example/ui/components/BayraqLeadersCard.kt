@@ -88,7 +88,7 @@ fun BayraqLeadersCard(
     val idariAtt = allAttendance.find { it.groupId == group.id && it.roleType == "IDARI" && it.date == selectedDate }
     val leaderAttendanceVisible by viewModel.leaderAttendanceVisible.collectAsState()
 
-    var expanded by remember { mutableStateOf(true) }
+    var expanded by remember { mutableStateOf(false) }
     var editingLeader by remember { mutableStateOf<GroupLeaderEntity?>(null) }
 
     Card(

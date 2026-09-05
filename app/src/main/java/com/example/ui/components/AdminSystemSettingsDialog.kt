@@ -43,6 +43,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -71,12 +72,45 @@ fun AdminSystemSettingsDialog(
     val deviceSessions by viewModel.allDeviceSessions.collectAsState()
     val currentDevId = viewModel.currentDeviceId
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshDeviceSessions()
+    }
+
     val now = System.currentTimeMillis()
     val activeThresholdMs = 24 * 60 * 60 * 1000L // 24 hours
-    val onlineDevices = remember(deviceSessions, now) {
-        deviceSessions.filter { device ->
+    val onlineDevices = remember(deviceSessions, now, currentDevId) {
+        val activeSessions = deviceSessions.filter { device ->
             device.deviceId == currentDevId || (now - device.lastActiveTime) <= activeThresholdMs
         }
+
+        // Deduplicate: same physical phone opened multiple times counts as ONE phone
+        val map = linkedMapOf<String, DeviceSessionEntity>()
+        activeSessions.sortedBy { it.lastActiveTime }.forEach { dev ->
+            val isCurrent = dev.deviceId == currentDevId
+            val key = if (isCurrent) {
+                "CURRENT_DEVICE"
+            } else {
+                "${dev.deviceName.trim().lowercase()}_${dev.osVersion.trim().lowercase()}_${dev.lastLoginUser.trim()}".ifBlank { dev.deviceId }
+            }
+
+            val existing = map[key]
+            if (existing == null) {
+                map[key] = dev
+            } else {
+                map[key] = dev.copy(
+                    deviceId = if (isCurrent) currentDevId else (if (existing.deviceId == currentDevId) currentDevId else dev.deviceId),
+                    isBlocked = existing.isBlocked || dev.isBlocked,
+                    blockedReason = if (dev.isBlocked) dev.blockedReason else existing.blockedReason,
+                    firstSeenTime = minOf(existing.firstSeenTime, dev.firstSeenTime),
+                    lastActiveTime = maxOf(existing.lastActiveTime, dev.lastActiveTime)
+                )
+            }
+        }
+
+        map.values.sortedWith(
+            compareByDescending<DeviceSessionEntity> { it.deviceId == currentDevId }
+                .thenByDescending { it.lastActiveTime }
+        )
     }
 
     AlertDialog(

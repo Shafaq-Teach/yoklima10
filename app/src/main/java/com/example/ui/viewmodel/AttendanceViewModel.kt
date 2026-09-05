@@ -331,6 +331,26 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    fun refreshDeviceSessions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val curUser = _currentUser.value?.displayName ?: "باشقۇرغۇچى / ئەزا"
+                val devName = "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL}"
+                val osVer = "Android ${android.os.Build.VERSION.RELEASE}"
+                repository.registerOrUpdateDeviceSession(currentDeviceId, devName, osVer, curUser)
+
+                val pulled = com.example.data.supabase.SupabaseSyncService.pullDeviceSessions()
+                if (pulled.isNotEmpty()) {
+                    repository.restoreFromSupabaseData(
+                        com.example.data.supabase.SupabasePullData(deviceSessions = pulled)
+                    )
+                }
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
     // Save Bayraq Leader Contact
     fun saveBayraqLeader(leader: com.example.data.model.GroupLeaderEntity) {
         viewModelScope.launch {
