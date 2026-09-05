@@ -332,7 +332,7 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun refreshDeviceSessions() {
-        viewModelScope.launch(Dispatchers.IO) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val curUser = _currentUser.value?.displayName ?: "باشقۇرغۇچى / ئەزا"
                 val devName = "${android.os.Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${android.os.Build.MODEL}"
