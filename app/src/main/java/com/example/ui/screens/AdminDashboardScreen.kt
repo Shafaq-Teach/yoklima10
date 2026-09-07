@@ -2301,6 +2301,18 @@ fun AdminDashboardScreen(
                                 val absentDays = memberRecords.count { it.status == AttendanceStatus.ABSENT }
                                 val excusedDays = memberRecords.count { it.status == AttendanceStatus.EXCUSED }
                                 val attendanceRate = if (totalDays > 0) (presentDays.toFloat() / totalDays.toFloat()) * 100f else 100f
+                                val latestNoteRecord = remember(memberRecords) { memberRecords.filter { it.note.isNotBlank() }.maxByOrNull { it.date } }
+                                val effectiveNote = remember(todayRecord, latestNoteRecord, member.notes) {
+                                    when {
+                                        !todayRecord?.note.isNullOrBlank() -> todayRecord!!.note.trim()
+                                        latestNoteRecord != null -> {
+                                            if (latestNoteRecord.date.isNotBlank()) "${latestNoteRecord.note.trim()} (${latestNoteRecord.date})"
+                                            else latestNoteRecord.note.trim()
+                                        }
+                                        member.notes.isNotBlank() -> member.notes.trim()
+                                        else -> ""
+                                    }
+                                }
 
                                 MemberDetailRow(
                                     member = member,
@@ -2313,6 +2325,7 @@ fun AdminDashboardScreen(
                                     excusedDays = excusedDays,
                                     totalDays = totalDays,
                                     todayStatus = todayRecord?.status,
+                                    note = effectiveNote,
                                     onMemberClick = {
                                         expandedMemberId = if (expandedMemberId == member.id) null else member.id
                                     }
@@ -2339,6 +2352,18 @@ fun AdminDashboardScreen(
                                 val absentDays = memberRecords.count { it.status == AttendanceStatus.ABSENT }
                                 val excusedDays = memberRecords.count { it.status == AttendanceStatus.EXCUSED }
                                 val attendanceRate = if (totalDays > 0) (presentDays.toFloat() / totalDays.toFloat()) * 100f else 100f
+                                val latestNoteRecord = remember(memberRecords) { memberRecords.filter { it.note.isNotBlank() }.maxByOrNull { it.date } }
+                                val effectiveNote = remember(todayRecord, latestNoteRecord, member.notes) {
+                                    when {
+                                        !todayRecord?.note.isNullOrBlank() -> todayRecord!!.note.trim()
+                                        latestNoteRecord != null -> {
+                                            if (latestNoteRecord.date.isNotBlank()) "${latestNoteRecord.note.trim()} (${latestNoteRecord.date})"
+                                            else latestNoteRecord.note.trim()
+                                        }
+                                        member.notes.isNotBlank() -> member.notes.trim()
+                                        else -> ""
+                                    }
+                                }
 
                                 MemberDetailRow(
                                     member = member,
@@ -2351,6 +2376,7 @@ fun AdminDashboardScreen(
                                     excusedDays = excusedDays,
                                     totalDays = totalDays,
                                     todayStatus = todayRecord?.status,
+                                    note = effectiveNote,
                                     onMemberClick = {
                                         expandedMemberId = if (expandedMemberId == member.id) null else member.id
                                     }
@@ -2937,6 +2963,7 @@ fun MemberDetailRow(
     excusedDays: Int,
     totalDays: Int,
     todayStatus: AttendanceStatus?,
+    note: String = "",
     onMemberClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -3153,6 +3180,7 @@ fun MemberDetailRow(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     // 2. ئەزا توغرىسىدىكى ئىزاھات (Notes Section)
+                    val displayNote = note.ifBlank { member.notes.trim() }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
@@ -3168,9 +3196,9 @@ fun MemberDetailRow(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = if (member.notes.isNotBlank()) member.notes else "ھېچقانداق ئالاھىدە ئىزاھات يوق.",
+                                text = if (displayNote.isNotBlank()) displayNote else "ھېچقانداق ئالاھىدە ئىزاھات يوق.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (member.notes.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (displayNote.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
