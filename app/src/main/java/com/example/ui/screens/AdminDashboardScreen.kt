@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +24,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AdminPanelSettings
 import androidx.compose.material.icons.filled.Assessment
@@ -2105,6 +2109,7 @@ fun AdminDashboardScreen(
         val grpStat = groupStats.find { it.group.id == grp.id }
         val sub1 = grpMembers.filter { it.subGroup == 1 }
         val sub2 = grpMembers.filter { it.subGroup == 2 }
+        var expandedMemberId by remember { mutableStateOf<Long?>(null) }
 
         AlertDialog(
             onDismissRequest = { selectedGroupDetails = null },
@@ -2274,7 +2279,7 @@ fun AdminDashboardScreen(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(280.dp),
+                            .heightIn(min = 280.dp, max = 520.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         if (sub1.isNotEmpty()) {
@@ -2288,11 +2293,29 @@ fun AdminDashboardScreen(
                                 )
                             }
                             items(sub1, key = { "sub1_${it.id}" }) { member ->
+                                val isExpanded = expandedMemberId == member.id
+                                val memberRecords = remember(allAttendance, member.id) { allAttendance.filter { it.memberId == member.id } }
+                                val todayRecord = remember(memberRecords, selectedDate) { memberRecords.find { it.date == selectedDate } }
+                                val totalDays = memberRecords.size
+                                val presentDays = memberRecords.count { it.status == AttendanceStatus.PRESENT }
+                                val absentDays = memberRecords.count { it.status == AttendanceStatus.ABSENT }
+                                val excusedDays = memberRecords.count { it.status == AttendanceStatus.EXCUSED }
+                                val attendanceRate = if (totalDays > 0) (presentDays.toFloat() / totalDays.toFloat()) * 100f else 100f
+
                                 MemberDetailRow(
                                     member = member,
                                     subGroupLabel = s.subGroup1,
                                     context = context,
-                                    onMemberClick = { selectedMemberForDetails = member }
+                                    isExpanded = isExpanded,
+                                    attendanceRate = attendanceRate,
+                                    presentDays = presentDays,
+                                    absentDays = absentDays,
+                                    excusedDays = excusedDays,
+                                    totalDays = totalDays,
+                                    todayStatus = todayRecord?.status,
+                                    onMemberClick = {
+                                        expandedMemberId = if (expandedMemberId == member.id) null else member.id
+                                    }
                                 )
                             }
                         }
@@ -2308,11 +2331,29 @@ fun AdminDashboardScreen(
                                 )
                             }
                             items(sub2, key = { "sub2_${it.id}" }) { member ->
+                                val isExpanded = expandedMemberId == member.id
+                                val memberRecords = remember(allAttendance, member.id) { allAttendance.filter { it.memberId == member.id } }
+                                val todayRecord = remember(memberRecords, selectedDate) { memberRecords.find { it.date == selectedDate } }
+                                val totalDays = memberRecords.size
+                                val presentDays = memberRecords.count { it.status == AttendanceStatus.PRESENT }
+                                val absentDays = memberRecords.count { it.status == AttendanceStatus.ABSENT }
+                                val excusedDays = memberRecords.count { it.status == AttendanceStatus.EXCUSED }
+                                val attendanceRate = if (totalDays > 0) (presentDays.toFloat() / totalDays.toFloat()) * 100f else 100f
+
                                 MemberDetailRow(
                                     member = member,
                                     subGroupLabel = s.subGroup2,
                                     context = context,
-                                    onMemberClick = { selectedMemberForDetails = member }
+                                    isExpanded = isExpanded,
+                                    attendanceRate = attendanceRate,
+                                    presentDays = presentDays,
+                                    absentDays = absentDays,
+                                    excusedDays = excusedDays,
+                                    totalDays = totalDays,
+                                    todayStatus = todayRecord?.status,
+                                    onMemberClick = {
+                                        expandedMemberId = if (expandedMemberId == member.id) null else member.id
+                                    }
                                 )
                             }
                         }
@@ -2889,76 +2930,385 @@ fun MemberDetailRow(
     member: MemberEntity,
     subGroupLabel: String,
     context: android.content.Context,
+    isExpanded: Boolean,
+    attendanceRate: Float,
+    presentDays: Int,
+    absentDays: Int,
+    excusedDays: Int,
+    totalDays: Int,
+    todayStatus: AttendanceStatus?,
     onMemberClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val rateColor = if (attendanceRate >= 80f) PresentGreen else if (attendanceRate >= 60f) Color(0xFFE65100) else AbsentRed
+    val rateContainerColor = if (attendanceRate >= 80f) PresentGreenContainer else if (attendanceRate >= 60f) Color(0xFFFFE0B2) else AbsentRedContainer
+
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isExpanded) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = if (isExpanded) androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)) else null,
         modifier = modifier
             .fillMaxWidth()
             .clickable { onMemberClick() }
             .testTag("admin_member_row_${member.id}")
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = member.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                if (member.contactAddress.isNotBlank() || member.telegramContact.isNotBlank() || member.whatsappContact.isNotBlank()) {
-                    Row(
-                        modifier = Modifier.padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+            // Header Row: Member Name, SubGroup badge, Chevron
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(if (isExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (member.contactAddress.isNotBlank()) {
+                        Text(
+                            text = member.name.take(1),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isExpanded) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = member.name,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        if (!isExpanded && member.contactAddress.isNotBlank()) {
                             Text(
                                 text = "📞 ${member.contactAddress}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.clickable { com.example.util.ContactUtils.openPhoneCall(context, member.contactAddress) }
-                            )
-                        }
-                        if (member.telegramContact.isNotBlank()) {
-                            Text(
-                                text = "✈ Telegram",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0088CC),
-                                modifier = Modifier.clickable { com.example.util.ContactUtils.openTelegram(context, member.telegramContact) }
-                            )
-                        }
-                        if (member.whatsappContact.isNotBlank()) {
-                            Text(
-                                text = "💬 WA",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1EBE5D),
-                                modifier = Modifier.clickable { com.example.util.ContactUtils.openWhatsApp(context, member.whatsappContact) }
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = subGroupLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "يىغىش" else "كېڭەيتىش",
+                        tint = if (isExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
-            ) {
-                Text(
-                    text = subGroupLabel,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                )
+            // Expanded Details Section
+            AnimatedVisibility(visible = isExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp)
+                ) {
+                    androidx.compose.material3.HorizontalDivider(
+                        modifier = Modifier.padding(bottom = 8.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    )
+
+                    // 1. كېلىش نىسبىتى (Attendance Rate Section)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📊 يوقلىما كېلىش نىسبىتى:",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = rateContainerColor
+                        ) {
+                            Text(
+                                text = "${String.format(Locale.US, "%.0f", attendanceRate)}%",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = rateColor,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Breakdown badges (بار، يوق، رۇخسەت، بۈگۈن)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = PresentGreenContainer,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "بار: $presentDays كۈن",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = PresentGreen,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = AbsentRedContainer,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "يوق: $absentDays كۈن",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = AbsentRed,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = ExcusedBlueContainer,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "رۇخسەت: $excusedDays كۈن",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ExcusedBlue,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    if (todayStatus != null) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        val todayColor = when (todayStatus) {
+                            AttendanceStatus.PRESENT -> PresentGreen
+                            AttendanceStatus.ABSENT -> AbsentRed
+                            AttendanceStatus.EXCUSED -> ExcusedBlue
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                        val todayContainer = when (todayStatus) {
+                            AttendanceStatus.PRESENT -> PresentGreenContainer
+                            AttendanceStatus.ABSENT -> AbsentRedContainer
+                            AttendanceStatus.EXCUSED -> ExcusedBlueContainer
+                            else -> MaterialTheme.colorScheme.surfaceVariant
+                        }
+                        val todayText = when (todayStatus) {
+                            AttendanceStatus.PRESENT -> "بۈگۈن: بار (ھازىر)"
+                            AttendanceStatus.ABSENT -> "بۈگۈن: كەلمىدى (يوق)"
+                            AttendanceStatus.EXCUSED -> "بۈگۈن: رۇخسەت سورىغان"
+                            else -> "بۈگۈن: تېخى ئېلىنمىدى"
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = todayContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = todayText,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = todayColor,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 2. ئەزا توغرىسىدىكى ئىزاھات (Notes Section)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text(
+                                text = "📝 ئەزا ھەققىدە ئىزاھات:",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (member.notes.isNotBlank()) member.notes else "ھېچقانداق ئالاھىدە ئىزاھات يوق.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (member.notes.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // 3. بارلىق ئالاقىلىشىش ئادرېسلىرى (All Contact Addresses)
+                    Text(
+                        text = "📱 بارلىق ئالاقىلىشىش ئادرېسلىرى:",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        // Phone
+                        val hasPhone = member.contactAddress.isNotBlank()
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (hasPhone) Color(0xFF2E7D32).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (hasPhone) Modifier.clickable { com.example.util.ContactUtils.openPhoneCall(context, member.contactAddress) } else Modifier)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Phone, contentDescription = null, tint = if (hasPhone) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (hasPhone) "تېلېفون: ${member.contactAddress}" else "تېلېفون: يوق",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (hasPhone) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (hasPhone) Color(0xFF2E7D32) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (hasPhone) {
+                                    Text("ئۇرۇش ↗", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Telegram
+                        val hasTg = member.telegramContact.isNotBlank()
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (hasTg) Color(0xFF0088CC).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (hasTg) Modifier.clickable { com.example.util.ContactUtils.openTelegram(context, member.telegramContact) } else Modifier)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Send, contentDescription = null, tint = if (hasTg) Color(0xFF0088CC) else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (hasTg) "تېلېگرام: ${member.telegramContact}" else "تېلېگرام: يوق",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (hasTg) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (hasTg) Color(0xFF0088CC) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (hasTg) {
+                                    Text("ئېچىش ↗", style = MaterialTheme.typography.labelSmall, color = Color(0xFF0088CC), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // WhatsApp
+                        val hasWa = member.whatsappContact.isNotBlank()
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (hasWa) Color(0xFF1EBE5D).copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (hasWa) Modifier.clickable { com.example.util.ContactUtils.openWhatsApp(context, member.whatsappContact) } else Modifier)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Chat, contentDescription = null, tint = if (hasWa) Color(0xFF1EBE5D) else MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (hasWa) "ۋاتساپ: ${member.whatsappContact}" else "ۋاتساپ: يوق",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (hasWa) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (hasWa) Color(0xFF0F6E35) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                if (hasWa) {
+                                    Text("ئېچىش ↗", style = MaterialTheme.typography.labelSmall, color = Color(0xFF0F6E35), fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+
+                        // Other Contact
+                        if (member.otherContact.isNotBlank()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "🌐 باشقا ئالاقە: ${member.otherContact}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "▲ قايتا بىر چەكسىڭىز يىغىلىدۇ",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    )
+                }
             }
         }
     }
