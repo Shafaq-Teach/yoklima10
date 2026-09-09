@@ -57,6 +57,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -804,6 +805,21 @@ fun LoginScreen(
                 }
             )
         }
+
+        // App Version Tag in Yellow on Bottom-Right (ئەپ نەشرى : v1.0.1)
+        Text(
+            text = " ئەپ نەشرى : v1.0.1 ",
+            color = Color(0xFFFFEB3B), // High-visibility Cyber Yellow
+            fontWeight = FontWeight.Bold,
+            fontSize = 13.sp,
+            modifier = Modifier
+                .align(AbsoluteAlignment.BottomRight)
+                .padding(bottom = 18.dp, end = 16.dp)
+                .background(Color(0xFF001F3F).copy(alpha = 0.85f), RoundedCornerShape(8.dp))
+                .border(1.dp, Color(0xFFFFEB3B).copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 10.dp, vertical = 5.dp)
+                .testTag("app_version_tag")
+        )
     }
 }
 

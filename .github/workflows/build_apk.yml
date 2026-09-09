@@ -78,13 +78,31 @@ jobs:
           name: Yoqlima-APK
           path: app/build/outputs/apk/debug/*.apk
 
+      - name: Extract App Version
+        id: get_version
+        run: |
+          VERSION=$(grep -E 'versionName\s*=\s*"[^"]+"' app/build.gradle.kts | head -n1 | sed -E 's/.*versionName\s*=\s*"([^"]+)".*/\1/')
+          echo "Found version: $VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          TAG="v$VERSION"
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+
+          if git rev-parse "$TAG" >/dev/null 2>&1 || git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists. Skipping release creation."
+            echo "SHOULD_RELEASE=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG is new! Will create release."
+            echo "SHOULD_RELEASE=true" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Release with APK
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')
+        if: (startsWith(github.ref, 'refs/heads/main') || startsWith(github.ref, 'refs/heads/master')) && steps.get_version.outputs.SHOULD_RELEASE == 'true'
         with:
-          tag_name: v1.0.${{ github.run_number }}
-          name: "Yoqlima Attendance App v1.0.${{ github.run_number }}"
-          body: "Automatic build of Yoqlima Attendance Management APK."
+          tag_name: ${{ steps.get_version.outputs.TAG }}
+          name: "Yoqlima Attendance App ${{ steps.get_version.outputs.TAG }}"
+          body: "Official Release of Yoqlima Attendance Management APK (${{ steps.get_version.outputs.TAG }})."
           files: app/build/outputs/apk/debug/*.apk
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

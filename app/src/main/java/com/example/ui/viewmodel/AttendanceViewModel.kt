@@ -782,22 +782,30 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             val grpMembers = members.filter { it.groupId == grp.id }
             val leaderCount = (if (grp.subLeader1.isNotBlank()) 1 else 0) + (if (grp.subLeader2.isNotBlank()) 1 else 0)
             val totalGroupMembersCount = grpMembers.size + leaderCount
-            val activeMembers = grpMembers.filter { it.status == MemberStatus.ACTIVE }
-            val grpRecords = records.filter { it.groupId == grp.id && it.date == date }
+
+            // نۆۋەتچى سانجاقلارنى ئېلىش (1 ياكى 2 ياكى ھەر ئىككىلىسى)
+            val dutySgs = parseDutySubGroups(grp.dutySubGroupCustomName, grp.dutySubGroup)
+            val dutyMembers = grpMembers.filter { it.subGroup in dutySgs }.let {
+                if (it.isEmpty() && grpMembers.isNotEmpty()) grpMembers else it
+            }
+            val activeDutyMembers = dutyMembers.filter { it.status == MemberStatus.ACTIVE }
+
+            val dutyMemberIds = dutyMembers.map { it.id }.toSet()
+            val grpRecords = records.filter { it.groupId == grp.id && it.date == date && it.memberId in dutyMemberIds }
             val presentCount = grpRecords.count { it.status == AttendanceStatus.PRESENT }
             val absentCount = grpRecords.count { it.status == AttendanceStatus.ABSENT }
             val lateCount = grpRecords.count { it.status == AttendanceStatus.LATE }
             val excusedCount = grpRecords.count { it.status == AttendanceStatus.EXCUSED }
 
-            val totalConsidered = (presentCount + absentCount + excusedCount).coerceAtLeast(activeMembers.size)
+            val totalConsidered = (presentCount + absentCount + excusedCount).coerceAtLeast(activeDutyMembers.size)
             val rate = if (totalConsidered > 0) {
                 (presentCount / totalConsidered.toFloat()) * 100f
             } else 0f
 
             GroupStat(
                 group = grp,
-                totalMembers = totalGroupMembersCount,
-                activeMembers = activeMembers.size + leaderCount,
+                totalMembers = dutyMembers.size,
+                activeMembers = activeDutyMembers.size,
                 presentCount = presentCount,
                 absentCount = absentCount,
                 lateCount = lateCount,
@@ -1734,12 +1742,19 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             val grpMembers = allMembs.filter { it.groupId == grp.id }
             val leaderCount = (if (grp.subLeader1.isNotBlank()) 1 else 0) + (if (grp.subLeader2.isNotBlank()) 1 else 0)
             val totalGroupMembersCount = grpMembers.size + leaderCount
-            val activeMembers = grpMembers.filter { it.status == MemberStatus.ACTIVE }
+
+            // نۆۋەتچى سانجاقلارنى ئېلىش
+            val dutySgs = parseDutySubGroups(grp.dutySubGroupCustomName, grp.dutySubGroup)
+            val dutyMembers = grpMembers.filter { it.subGroup in dutySgs }.let {
+                if (it.isEmpty() && grpMembers.isNotEmpty()) grpMembers else it
+            }
+            val activeDutyMembers = dutyMembers.filter { it.status == MemberStatus.ACTIVE }
+            val dutyMemberIds = dutyMembers.map { it.id }.toSet()
 
             val grpRecords = if (dateSet.isEmpty()) {
-                allRecs.filter { it.groupId == grp.id }
+                allRecs.filter { it.groupId == grp.id && it.memberId in dutyMemberIds }
             } else {
-                allRecs.filter { it.groupId == grp.id && it.date in dateSet }
+                allRecs.filter { it.groupId == grp.id && it.date in dateSet && it.memberId in dutyMemberIds }
             }
 
             val presentCount = grpRecords.count { it.status == AttendanceStatus.PRESENT }
@@ -1747,15 +1762,15 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
             val lateCount = grpRecords.count { it.status == AttendanceStatus.LATE }
             val excusedCount = grpRecords.count { it.status == AttendanceStatus.EXCUSED }
 
-            val totalExpected = (activeMembers.size * (if (dateSet.isEmpty()) 1 else dateSet.size)).coerceAtLeast(presentCount + absentCount + excusedCount)
+            val totalExpected = (activeDutyMembers.size * (if (dateSet.isEmpty()) 1 else dateSet.size)).coerceAtLeast(presentCount + absentCount + excusedCount)
             val rate = if (totalExpected > 0) {
                 (presentCount.toFloat() / totalExpected.toFloat()) * 100f
             } else 0f
 
             GroupStat(
                 group = grp,
-                totalMembers = totalGroupMembersCount,
-                activeMembers = activeMembers.size + leaderCount,
+                totalMembers = dutyMembers.size,
+                activeMembers = activeDutyMembers.size,
                 presentCount = presentCount,
                 absentCount = absentCount,
                 lateCount = lateCount,

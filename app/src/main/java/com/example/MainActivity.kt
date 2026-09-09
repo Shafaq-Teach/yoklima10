@@ -29,12 +29,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +59,9 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AttendanceViewModel
 import com.example.util.DeviceOptimizationHelper
 import com.example.util.LiveSyncForegroundService
+import com.example.util.AppUpdateManager
+import com.example.util.AppUpdateState
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity() {
@@ -122,6 +128,112 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AttendanceApp(viewModel: AttendanceViewModel = viewModel()) {
     val context = LocalContext.current
+    val updateState by AppUpdateManager.updateState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        AppUpdateManager.checkForUpdates()
+    }
+
+    when (val state = updateState) {
+        is AppUpdateState.UpdateAvailable -> {
+            AlertDialog(
+                onDismissRequest = { AppUpdateManager.resetState() },
+                shape = RoundedCornerShape(18.dp),
+                title = {
+                    Text(
+                        text = "🚀 يېڭى نەشرى بار!",
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "ئەپنىڭ يېڭى نەشرى تېپىلدى: ${state.info.latestVersion}\nئەپنى ھازىر ئاپتوماتىك چۈشۈرۈپ يېڭىلامسىز؟",
+                            fontSize = 15.sp,
+                            lineHeight = 22.sp
+                        )
+                        if (state.info.releaseNotes.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = state.info.releaseNotes,
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            coroutineScope.launch {
+                                AppUpdateManager.startDownload(context, state.info.downloadUrl)
+                            }
+                        }
+                    ) {
+                        Text("ھەئە", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { AppUpdateManager.resetState() }
+                    ) {
+                        Text("كېيىن")
+                    }
+                }
+            )
+        }
+        is AppUpdateState.Downloading -> {
+            AlertDialog(
+                onDismissRequest = {},
+                shape = RoundedCornerShape(18.dp),
+                title = {
+                    Text(
+                        text = "📥 يېڭى نەشرى چۈشۈرۈلۈۋاتىدۇ...",
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LinearProgressIndicator(
+                            progress = { state.progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "${(state.progress * 100).toInt()}%",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
+                confirmButton = {}
+            )
+        }
+        is AppUpdateState.Error -> {
+            AlertDialog(
+                onDismissRequest = { AppUpdateManager.resetState() },
+                shape = RoundedCornerShape(18.dp),
+                title = { Text("خاتالىق", fontWeight = FontWeight.Bold, color = Color.Red) },
+                text = { Text(state.message) },
+                confirmButton = {
+                    Button(onClick = { AppUpdateManager.resetState() }) {
+                        Text("جەزملەش")
+                    }
+                }
+            )
+        }
+        else -> {}
+    }
+
     val prefs = remember {
         context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
     }
