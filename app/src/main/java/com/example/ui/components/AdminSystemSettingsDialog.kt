@@ -76,7 +76,7 @@ fun AdminSystemSettingsDialog(
         viewModel.refreshDeviceSessions()
     }
 
-    val activeThresholdMs = 15 * 60 * 1000L // 15 minutes for live active phones
+    val activeThresholdMs = 24 * 60 * 60 * 1000L // 24 hours for live active phones
     val onlineDevices = remember(deviceSessions, currentDevId) {
         val nowTime = System.currentTimeMillis()
         val activeSessions = deviceSessions.filter { device ->
@@ -224,7 +224,7 @@ fun AdminSystemSettingsDialog(
                             color = Color(0xFF2E7D32).copy(alpha = 0.15f)
                         ) {
                             Text(
-                                text = "🟢 نەق ئاكتىپ: ${onlineDevices.size}",
+                                text = "🟢 ئاكتىپ (24 سائەت): ${onlineDevices.size}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = Color(0xFF2E7D32),
                                 fontWeight = FontWeight.Bold,
@@ -410,7 +410,7 @@ private fun DeviceItemCard(
                     }
                 }
 
-                val isLiveOnline = isCurrentDevice || (System.currentTimeMillis() - device.lastActiveTime) <= 15 * 60 * 1000L
+                val isLiveOnline = isCurrentDevice || (System.currentTimeMillis() - device.lastActiveTime) <= activeThresholdMs
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = if (device.isBlocked) Color(0xFFD32F2F) else (if (isLiveOnline) Color(0xFF2E7D32) else Color(0xFF757575))

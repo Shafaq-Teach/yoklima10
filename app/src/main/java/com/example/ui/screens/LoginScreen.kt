@@ -806,9 +806,9 @@ fun LoginScreen(
             )
         }
 
-        // App Version Tag in Yellow on Bottom-Right (ئەپ نەشرى : v1.0.2)
+        // App Version Tag in Yellow on Bottom-Right (ئەپ نەشرى : v...)
         Text(
-            text = " ئەپ نەشرى : v1.0.2 ",
+            text = " ئەپ نەشرى : v${com.aistudio.yoqlima.attendance.fyukql.BuildConfig.VERSION_NAME} ",
             color = Color(0xFFFFEB3B), // High-visibility Cyber Yellow
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,

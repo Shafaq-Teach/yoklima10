@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.Icons
@@ -254,7 +255,7 @@ fun AdminDashboardScreen(
                             val allSessions by viewModel.allDeviceSessions.collectAsState()
                             val uniqueActiveCount = remember(allSessions) {
                                 val nowTime = System.currentTimeMillis()
-                                val active = allSessions.filter { (nowTime - it.lastActiveTime) <= 15 * 60 * 1000L }
+                                val active = allSessions.filter { (nowTime - it.lastActiveTime) <= 24 * 60 * 60 * 1000L }
                                 active.map {
                                     "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}".ifBlank { it.deviceId }
                                 }.distinct().size
@@ -2275,7 +2276,45 @@ fun AdminDashboardScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    // Attendance Status Color Legend (بار: يېشىل، يوق: قىزىل، رۇخسەت: كۆك، قىلىنمىغان: قارا)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp, bottom = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 5.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(Color(0xFF2E7D32)))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("بار", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2E7D32), fontWeight = FontWeight.Bold)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(Color(0xFFD32F2F)))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("يوق", style = MaterialTheme.typography.labelSmall, color = Color(0xFFD32F2F), fontWeight = FontWeight.Bold)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(Color(0xFF1976D2)))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("رۇخسەت", style = MaterialTheme.typography.labelSmall, color = Color(0xFF1976D2), fontWeight = FontWeight.Bold)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(9.dp).clip(CircleShape).background(Color(0xFF212121)))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("قىلىنمىغان", style = MaterialTheme.typography.labelSmall, color = Color(0xFF424242), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2970,6 +3009,20 @@ fun MemberDetailRow(
     val rateColor = if (attendanceRate >= 80f) PresentGreen else if (attendanceRate >= 60f) Color(0xFFE65100) else AbsentRed
     val rateContainerColor = if (attendanceRate >= 80f) PresentGreenContainer else if (attendanceRate >= 60f) Color(0xFFFFE0B2) else AbsentRedContainer
 
+    // Status colors for the initial letter circle:
+    // بار (Present) -> Green (#2E7D32)
+    // يوق (Absent) -> Red (#D32F2F)
+    // رۇخسەت (Excused) -> Blue (#1976D2)
+    // كېچىككەن (Late) -> Orange (#E65100)
+    // يوقلىما قىلىنمىغان (null) -> Black (#212121)
+    val avatarBgColor = when (todayStatus) {
+        AttendanceStatus.PRESENT -> Color(0xFF2E7D32)
+        AttendanceStatus.ABSENT -> Color(0xFFD32F2F)
+        AttendanceStatus.EXCUSED -> Color(0xFF1976D2)
+        AttendanceStatus.LATE -> Color(0xFFE65100)
+        null -> Color(0xFF212121)
+    }
+
     Surface(
         shape = RoundedCornerShape(12.dp),
         color = if (isExpanded) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -2984,7 +3037,7 @@ fun MemberDetailRow(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 10.dp)
         ) {
-            // Header Row: Member Name, SubGroup badge, Chevron
+            // Header Row: Avatar circle with status color, Member Name & Phone, SubGroup badge, Chevron
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -2996,31 +3049,35 @@ fun MemberDetailRow(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
-                            .background(if (isExpanded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                            .background(avatarBgColor),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = member.name.take(1),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (isExpanded) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary
+                            color = Color.White
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column {
+                    Column(modifier = Modifier.weight(1f, fill = false)) {
                         Text(
                             text = member.name,
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (!isExpanded && member.contactAddress.isNotBlank()) {
                             Text(
                                 text = "📞 ${member.contactAddress}",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -3030,27 +3087,6 @@ fun MemberDetailRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Today Attendance Status Badge (بار، يوق، رۇخسەت) with clear colors
-                    val (statusLabel, statusBg, statusFg) = when (todayStatus) {
-                        AttendanceStatus.PRESENT -> Triple("بار", PresentGreenContainer, PresentGreen)
-                        AttendanceStatus.ABSENT -> Triple("يوق", AbsentRedContainer, AbsentRed)
-                        AttendanceStatus.EXCUSED -> Triple("رۇخسەت", ExcusedBlueContainer, ExcusedBlue)
-                        AttendanceStatus.LATE -> Triple("كېچىككەن", Color(0xFFFFE0B2), Color(0xFFE65100))
-                        null -> Triple("يوقلىما قىلىنمىغان", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = statusBg
-                    ) {
-                        Text(
-                            text = statusLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = statusFg,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
-                        )
-                    }
-
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)
