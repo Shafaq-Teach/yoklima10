@@ -25,6 +25,7 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+        continue-on-error: true
 
       - name: Accept Licenses & Install Android 36 SDK
         run: |
