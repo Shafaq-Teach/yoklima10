@@ -410,7 +410,7 @@ private fun DeviceItemCard(
                     }
                 }
 
-                val isLiveOnline = isCurrentDevice || (System.currentTimeMillis() - device.lastActiveTime) <= activeThresholdMs
+                val isLiveOnline = isCurrentDevice || (System.currentTimeMillis() - device.lastActiveTime) <= 24 * 60 * 60 * 1000L
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = if (device.isBlocked) Color(0xFFD32F2F) else (if (isLiveOnline) Color(0xFF2E7D32) else Color(0xFF757575))
