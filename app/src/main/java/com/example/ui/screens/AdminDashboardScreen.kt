@@ -252,11 +252,11 @@ fun AdminDashboardScreen(
                             Spacer(modifier = Modifier.width(4.dp))
 
                             val allSessions by viewModel.allDeviceSessions.collectAsState()
-                            val now = System.currentTimeMillis()
-                            val uniqueActiveCount = remember(allSessions, now) {
-                                val active = allSessions.filter { (now - it.lastActiveTime) <= 24 * 60 * 60 * 1000L }
+                            val uniqueActiveCount = remember(allSessions) {
+                                val nowTime = System.currentTimeMillis()
+                                val active = allSessions.filter { (nowTime - it.lastActiveTime) <= 15 * 60 * 1000L }
                                 active.map {
-                                    "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}_${it.lastLoginUser.trim()}".ifBlank { it.deviceId }
+                                    "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}".ifBlank { it.deviceId }
                                 }.distinct().size
                             }
                             IconButton(
@@ -407,7 +407,7 @@ fun AdminDashboardScreen(
                         verticalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
                         // Date selector strip
-                        item {
+                        item(key = "date_selector") {
                             DateSelectorStrip(
                                 selectedDate = selectedDate,
                                 onDateSelected = { viewModel.setSelectedDate(it) },
@@ -416,7 +416,7 @@ fun AdminDashboardScreen(
                         }
 
                         // Emergency Broadcast Action Card
-                        item {
+                        item(key = "emergency_broadcast") {
                             ElevatedCard(
                                 shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.elevatedCardColors(
@@ -474,7 +474,7 @@ fun AdminDashboardScreen(
                         }
 
                         // Macro Attendance Banner
-                        item {
+                        item(key = "macro_attendance_banner") {
                             ElevatedCard(
                                 shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.elevatedCardColors(
@@ -537,7 +537,7 @@ fun AdminDashboardScreen(
                         }
 
                         // Duty Group (نۆۋبەتچى گۇرۇپپا) Window
-                        item {
+                        item(key = "duty_group_card") {
                             ElevatedCard(
                                 shape = RoundedCornerShape(18.dp),
                                 colors = CardDefaults.elevatedCardColors(
@@ -806,7 +806,7 @@ fun AdminDashboardScreen(
                         }
 
                         // Section Title: 6 Groups Overview
-                        item {
+                        item(key = "groups_overview_title") {
                             Text(
                                 text = s.groupsOverview,
                                 style = MaterialTheme.typography.titleLarge,
@@ -3030,6 +3030,27 @@ fun MemberDetailRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    // Today Attendance Status Badge (بار، يوق، رۇخسەت) with clear colors
+                    val (statusLabel, statusBg, statusFg) = when (todayStatus) {
+                        AttendanceStatus.PRESENT -> Triple("بار", PresentGreenContainer, PresentGreen)
+                        AttendanceStatus.ABSENT -> Triple("يوق", AbsentRedContainer, AbsentRed)
+                        AttendanceStatus.EXCUSED -> Triple("رۇخسەت", ExcusedBlueContainer, ExcusedBlue)
+                        AttendanceStatus.LATE -> Triple("كېچىككەن", Color(0xFFFFE0B2), Color(0xFFE65100))
+                        null -> Triple("يوقلىما قىلىنمىغان", MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = statusBg
+                    ) {
+                        Text(
+                            text = statusLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = statusFg,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
+                    }
+
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f)

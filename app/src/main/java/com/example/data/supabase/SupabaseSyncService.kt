@@ -761,12 +761,14 @@ object SupabaseSyncService {
         // Deduplicate so multiple opens of the same physical phone are merged into ONE
         val dedupedMap = linkedMapOf<String, DeviceSessionEntity>()
         resultList.sortedBy { it.lastActiveTime }.forEach { d ->
-            val key = "${d.deviceName.trim().lowercase()}_${d.osVersion.trim().lowercase()}_${d.lastLoginUser.trim()}".ifBlank { d.deviceId }
+            val key = "${d.deviceName.trim().lowercase()}_${d.osVersion.trim().lowercase()}".ifBlank { d.deviceId }
             val prev = dedupedMap[key]
             if (prev == null) {
                 dedupedMap[key] = d
             } else {
                 dedupedMap[key] = d.copy(
+                    deviceId = d.deviceId.ifBlank { prev.deviceId },
+                    lastLoginUser = d.lastLoginUser.ifBlank { prev.lastLoginUser },
                     isBlocked = prev.isBlocked || d.isBlocked,
                     blockedReason = if (d.isBlocked) d.blockedReason else prev.blockedReason,
                     firstSeenTime = minOf(prev.firstSeenTime, d.firstSeenTime),
@@ -786,20 +788,22 @@ object SupabaseSyncService {
             val existing = pullDeviceSessions()
             val allList = existing + sessions
 
-            // Retain active devices for 24 hours so active phones are not lost
+            // Retain devices active within 7 days so registered phones are not immediately purged
             val now = System.currentTimeMillis()
-            val activeThresholdMs = 24 * 60 * 60 * 1000L
+            val activeThresholdMs = 7 * 24 * 60 * 60 * 1000L
             val validList = allList.filter { (now - it.lastActiveTime) <= activeThresholdMs }
 
             // Deduplicate: same physical phone opened multiple times counts as ONE phone
             val dedupedMap = linkedMapOf<String, DeviceSessionEntity>()
             validList.sortedBy { it.lastActiveTime }.forEach { d ->
-                val key = "${d.deviceName.trim().lowercase()}_${d.osVersion.trim().lowercase()}_${d.lastLoginUser.trim()}".ifBlank { d.deviceId }
+                val key = "${d.deviceName.trim().lowercase()}_${d.osVersion.trim().lowercase()}".ifBlank { d.deviceId }
                 val prev = dedupedMap[key]
                 if (prev == null) {
                     dedupedMap[key] = d
                 } else {
                     dedupedMap[key] = d.copy(
+                        deviceId = d.deviceId.ifBlank { prev.deviceId },
+                        lastLoginUser = d.lastLoginUser.ifBlank { prev.lastLoginUser },
                         isBlocked = prev.isBlocked || d.isBlocked,
                         blockedReason = if (d.isBlocked) d.blockedReason else prev.blockedReason,
                         firstSeenTime = minOf(prev.firstSeenTime, d.firstSeenTime),
@@ -1383,7 +1387,7 @@ object SupabaseSyncService {
         mapper: (JSONObject) -> T
     ): List<T> {
         val request = Request.Builder()
-            .url("$baseUrl/rest/v1/$tableName?select=*")
+            .url("$baseUrl/rest/v1/$tableName?select=*&order=id.asc")
             .addHeader("apikey", key)
             .addHeader("Authorization", "Bearer $key")
             .get()

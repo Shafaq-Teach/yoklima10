@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
@@ -169,40 +170,40 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
     private val _selectedGroupId = MutableStateFlow<Long>(1L)
     val selectedGroupId: StateFlow<Long> = _selectedGroupId.asStateFlow()
 
-    val groups: StateFlow<List<GroupEntity>> = repository.allGroups
+    val groups: StateFlow<List<GroupEntity>> = repository.allGroups.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val users: StateFlow<List<UserEntity>> = repository.allUsers
+    val users: StateFlow<List<UserEntity>> = repository.allUsers.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allMembers: StateFlow<List<MemberEntity>> = repository.allMembers
+    val allMembers: StateFlow<List<MemberEntity>> = repository.allMembers.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allAttendance: StateFlow<List<AttendanceRecordEntity>> = repository.allAttendance
+    val allAttendance: StateFlow<List<AttendanceRecordEntity>> = repository.allAttendance.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allEquipment: StateFlow<List<com.example.data.model.EquipmentEntity>> = repository.allEquipment
+    val allEquipment: StateFlow<List<com.example.data.model.EquipmentEntity>> = repository.allEquipment.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allDailyUpdates: StateFlow<List<com.example.data.model.DailyUpdateEntity>> = repository.allDailyUpdates
+    val allDailyUpdates: StateFlow<List<com.example.data.model.DailyUpdateEntity>> = repository.allDailyUpdates.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allExecutiveContacts: StateFlow<List<com.example.data.model.ExecutiveContactEntity>> = repository.allExecutiveContacts
+    val allExecutiveContacts: StateFlow<List<com.example.data.model.ExecutiveContactEntity>> = repository.allExecutiveContacts.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allNoticeReceipts: StateFlow<List<com.example.data.model.NoticeReceiptEntity>> = repository.allNoticeReceipts
+    val allNoticeReceipts: StateFlow<List<com.example.data.model.NoticeReceiptEntity>> = repository.allNoticeReceipts.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allGroupLeaders: StateFlow<List<com.example.data.model.GroupLeaderEntity>> = repository.allGroupLeaders
+    val allGroupLeaders: StateFlow<List<com.example.data.model.GroupLeaderEntity>> = repository.allGroupLeaders.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allGroupLeaderAttendance: StateFlow<List<com.example.data.model.GroupLeaderAttendanceEntity>> = repository.allGroupLeaderAttendance
+    val allGroupLeaderAttendance: StateFlow<List<com.example.data.model.GroupLeaderAttendanceEntity>> = repository.allGroupLeaderAttendance.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allSanjaqLeaders: StateFlow<List<com.example.data.model.SanjaqLeaderEntity>> = repository.allSanjaqLeaders
+    val allSanjaqLeaders: StateFlow<List<com.example.data.model.SanjaqLeaderEntity>> = repository.allSanjaqLeaders.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val allDeviceSessions: StateFlow<List<com.example.data.model.DeviceSessionEntity>> = repository.allDeviceSessions
+    val allDeviceSessions: StateFlow<List<com.example.data.model.DeviceSessionEntity>> = repository.allDeviceSessions.distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Leader Attendance Visibility Toggle (Admin Settings ⚙️)
@@ -646,12 +647,12 @@ class AttendanceViewModel(application: Application) : AndroidViewModel(applicati
                 subGroupExcusedCount = sgExcused,
                 subGroupAttendanceRate = sgRate,
                 subGroupExcusedRate = sgExcusedRate,
-                totalMembers = grpMembers.size,
+                totalMembers = if (sgMembers.isNotEmpty()) sgMembers.size else grpMembers.size,
                 isSubmitted = isSubmitted,
-                presentCount = presentCount,
-                absentCount = absentCount,
-                excusedCount = excusedCount,
-                attendanceRate = rate,
+                presentCount = if (sgMembers.isNotEmpty()) sgPresent else presentCount,
+                absentCount = if (sgMembers.isNotEmpty()) sgAbsent else absentCount,
+                excusedCount = if (sgMembers.isNotEmpty()) sgExcused else excusedCount,
+                attendanceRate = if (sgMembers.isNotEmpty()) sgRate else rate,
                 lastSubmittedTime = formattedTime,
                 dutyNotes = dutyGrp.dutyNotes
             )

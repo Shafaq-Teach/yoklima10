@@ -76,11 +76,11 @@ fun AdminSystemSettingsDialog(
         viewModel.refreshDeviceSessions()
     }
 
-    val now = System.currentTimeMillis()
-    val activeThresholdMs = 24 * 60 * 60 * 1000L // 24 hours
-    val onlineDevices = remember(deviceSessions, now, currentDevId) {
+    val activeThresholdMs = 15 * 60 * 1000L // 15 minutes for live active phones
+    val onlineDevices = remember(deviceSessions, currentDevId) {
+        val nowTime = System.currentTimeMillis()
         val activeSessions = deviceSessions.filter { device ->
-            device.deviceId == currentDevId || (now - device.lastActiveTime) <= activeThresholdMs
+            device.deviceId == currentDevId || (nowTime - device.lastActiveTime) <= activeThresholdMs
         }
 
         // Deduplicate: same physical phone opened multiple times counts as ONE phone
@@ -90,7 +90,7 @@ fun AdminSystemSettingsDialog(
             val key = if (isCurrent) {
                 "CURRENT_DEVICE"
             } else {
-                "${dev.deviceName.trim().lowercase()}_${dev.osVersion.trim().lowercase()}_${dev.lastLoginUser.trim()}".ifBlank { dev.deviceId }
+                "${dev.deviceName.trim().lowercase()}_${dev.osVersion.trim().lowercase()}".ifBlank { dev.deviceId }
             }
 
             val existing = map[key]
@@ -99,6 +99,7 @@ fun AdminSystemSettingsDialog(
             } else {
                 map[key] = dev.copy(
                     deviceId = if (isCurrent) currentDevId else (if (existing.deviceId == currentDevId) currentDevId else dev.deviceId),
+                    lastLoginUser = dev.lastLoginUser.ifBlank { existing.lastLoginUser },
                     isBlocked = existing.isBlocked || dev.isBlocked,
                     blockedReason = if (dev.isBlocked) dev.blockedReason else existing.blockedReason,
                     firstSeenTime = minOf(existing.firstSeenTime, dev.firstSeenTime),
@@ -409,12 +410,13 @@ private fun DeviceItemCard(
                     }
                 }
 
+                val isLiveOnline = isCurrentDevice || (System.currentTimeMillis() - device.lastActiveTime) <= 15 * 60 * 1000L
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (device.isBlocked) Color(0xFFD32F2F) else Color(0xFF2E7D32)
+                    color = if (device.isBlocked) Color(0xFFD32F2F) else (if (isLiveOnline) Color(0xFF2E7D32) else Color(0xFF757575))
                 ) {
                     Text(
-                        text = if (device.isBlocked) "توختىتىلغان" else "ئاكتىپ",
+                        text = if (device.isBlocked) "توختىتىلغان" else (if (isLiveOnline) "نەق ئوچۇق" else "توردا يوق"),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,

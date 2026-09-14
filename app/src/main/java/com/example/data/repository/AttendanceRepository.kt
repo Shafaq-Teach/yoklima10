@@ -552,8 +552,7 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         allLocal.filter {
             it.deviceId != deviceId &&
             it.deviceName.trim().equals(deviceName.trim(), ignoreCase = true) &&
-            it.osVersion.trim().equals(osVersion.trim(), ignoreCase = true) &&
-            it.lastLoginUser.trim().equals(userName.trim(), ignoreCase = true)
+            it.osVersion.trim().equals(osVersion.trim(), ignoreCase = true)
         }.forEach {
             dao.deleteDeviceSession(it.deviceId)
         }
@@ -595,15 +594,21 @@ class AttendanceRepository(private val dao: AttendanceDao) {
     suspend fun restoreFromSupabaseData(data: com.example.data.supabase.SupabasePullData) {
         if (data.groups.isNotEmpty()) {
             val local = dao.getAllGroupsList()
-            if (local != data.groups) dao.insertGroups(data.groups)
+            val localMap = local.associateBy { it.id }
+            val toUpdate = data.groups.filter { remote -> localMap[remote.id] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertGroups(toUpdate)
         }
         if (data.users.isNotEmpty()) {
             val local = dao.getAllUsersList()
-            if (local != data.users) dao.insertUsers(data.users)
+            val localMap = local.associateBy { it.id }
+            val toUpdate = data.users.filter { remote -> localMap[remote.id] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertUsers(toUpdate)
         }
         if (data.members.isNotEmpty()) {
             val local = dao.getAllMembersList()
-            if (local != data.members) dao.insertMembers(data.members)
+            val localMap = local.associateBy { it.id }
+            val toUpdate = data.members.filter { remote -> localMap[remote.id] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertMembers(toUpdate)
         }
         if (data.attendance.isNotEmpty()) {
             val localList = dao.getAllAttendanceList()
@@ -619,31 +624,47 @@ class AttendanceRepository(private val dao: AttendanceDao) {
         }
         if (data.equipment.isNotEmpty()) {
             val local = dao.getAllEquipmentList()
-            if (local != data.equipment) dao.insertEquipmentBatch(data.equipment)
+            val localMap = local.associateBy { it.id }
+            val toUpdate = data.equipment.filter { remote -> localMap[remote.id] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertEquipmentBatch(toUpdate)
         }
         if (data.updates.isNotEmpty()) {
             val local = dao.getAllDailyUpdatesList()
-            if (local != data.updates) dao.insertDailyUpdatesBatch(data.updates)
+            val localMap = local.associateBy { it.id }
+            val toUpdate = data.updates.filter { remote -> localMap[remote.id] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertDailyUpdatesBatch(toUpdate)
         }
         if (data.contacts.isNotEmpty()) {
             val local = dao.getAllExecutiveContactsList()
-            if (local != data.contacts) dao.insertExecutiveContactsBatch(data.contacts)
+            val localMap = local.associateBy { it.id }
+            val toUpdate = data.contacts.filter { remote -> localMap[remote.id] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertExecutiveContactsBatch(toUpdate)
         }
         if (data.receipts.isNotEmpty()) {
             val local = dao.getAllNoticeReceiptsList()
-            if (local != data.receipts) dao.insertReceiptsBatch(data.receipts)
+            val localMap = local.associateBy { "${it.noticeId}_${it.groupId}" }
+            val toUpdate = data.receipts.filter { remote -> localMap["${remote.noticeId}_${remote.groupId}"] != remote }
+            if (toUpdate.isNotEmpty()) dao.insertReceiptsBatch(toUpdate)
         }
         if (data.deviceSessions.isNotEmpty()) {
             val local = dao.getAllDeviceSessionsList()
+            // Deduplicate by physical device (deviceName + osVersion) or deviceId
             val deduped = data.deviceSessions.associateBy {
-                "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}_${it.lastLoginUser.trim()}".ifBlank { it.deviceId }
+                "${it.deviceName.trim().lowercase()}_${it.osVersion.trim().lowercase()}".ifBlank { it.deviceId }
             }.values.toList()
-            if (local != deduped) {
-                dao.insertDeviceSessionsBatch(deduped)
-                val activeIds = deduped.map { it.deviceId }.toSet()
-                local.filter { it.deviceId !in activeIds }.forEach {
-                    dao.deleteDeviceSession(it.deviceId)
-                }
+            val localMap = local.associateBy { it.deviceId }
+            val toUpdate = deduped.filter { remote ->
+                val loc = localMap[remote.deviceId]
+                loc == null || loc.isBlocked != remote.isBlocked || loc.lastLoginUser != remote.lastLoginUser ||
+                        Math.abs(loc.lastActiveTime - remote.lastActiveTime) > 30_000L
+            }
+            if (toUpdate.isNotEmpty()) {
+                dao.insertDeviceSessionsBatch(toUpdate)
+            }
+            val activeIds = deduped.map { it.deviceId }.toSet()
+            val toDelete = local.filter { it.deviceId !in activeIds }
+            toDelete.forEach {
+                dao.deleteDeviceSession(it.deviceId)
             }
         }
     }

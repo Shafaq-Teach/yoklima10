@@ -806,9 +806,9 @@ fun LoginScreen(
             )
         }
 
-        // App Version Tag in Yellow on Bottom-Right (ئەپ نەشرى : v1.0.1)
+        // App Version Tag in Yellow on Bottom-Right (ئەپ نەشرى : v1.0.2)
         Text(
-            text = " ئەپ نەشرى : v1.0.1 ",
+            text = " ئەپ نەشرى : v1.0.2 ",
             color = Color(0xFFFFEB3B), // High-visibility Cyber Yellow
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp,
